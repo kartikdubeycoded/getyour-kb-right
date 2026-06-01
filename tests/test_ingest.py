@@ -22,6 +22,7 @@ def client(monkeypatch, tmp_path):
         return p
 
     monkeypatch.setattr(ingest_mod, "download_audio", fake_download)
+    monkeypatch.setattr(ingest_mod, "transcribe_audio", lambda path: "transcript text")
 
     from app.main import app
 

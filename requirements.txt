@@ -7,4 +7,5 @@ ruff
 sqlmodel       # Task 2: Reel model + store (pulls SQLAlchemy + pydantic)
 jinja2         # Task 3: dashboard templates
 yt-dlp         # Task 4: download a public reel's audio
-# added later: faster-whisper (Task 5), openai + pyyaml (Task 6)
+faster-whisper # Task 5: local transcription (no API key)
+# added later: openai + pyyaml (Task 6)
