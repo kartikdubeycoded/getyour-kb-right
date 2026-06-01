@@ -1,0 +1,9 @@
+# v1 deps grow per task (incremental). Task 1: web skeleton + tests + lint.
+fastapi
+uvicorn[standard]
+httpx          # FastAPI TestClient dependency
+pytest
+ruff
+sqlmodel       # Task 2: Reel model + store (pulls SQLAlchemy + pydantic)
+jinja2         # Task 3: dashboard templates
+# added later: yt-dlp (Task 4), faster-whisper (Task 5), openai+pyyaml (Task 6)

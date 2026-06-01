@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>get your knowledge right</title>
+  <link rel="stylesheet" href="/static/style.css" />
+</head>
+<body>
+  <header>
+    <h1>get<span>·</span>your<span>·</span>knowledge<span>·</span>right</h1>
+    <p class="sub">{{ reels|length }} reel(s) · share a reel to add more</p>
+  </header>
+  <main>
+    {% if not reels %}
+      <p class="empty">Nothing yet. POST a reel URL to <code>/ingest</code>.</p>
+    {% endif %}
+    {% for reel in reels %}
+    <article class="card status-{{ reel.status }}">
+      <div class="row">
+        <span class="tag">{{ reel.tag or "—" }}</span>
+        <span class="status">{{ reel.status }}</span>
+      </div>
+      <a class="url" href="{{ reel.url }}" target="_blank" rel="noopener">{{ reel.url }}</a>
+      {% if reel.summary %}<p class="summary">{{ reel.summary }}</p>{% endif %}
+      {% if reel.take %}<p class="take">{{ reel.take }}</p>{% endif %}
+      {% if reel.error %}<p class="error">{{ reel.error }}</p>{% endif %}
+    </article>
+    {% endfor %}
+  </main>
+</body>
+</html>

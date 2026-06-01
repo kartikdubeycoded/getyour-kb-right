@@ -1,0 +1,44 @@
+# secrets
+.env
+.env.*
+*.key
+secrets/
+
+# python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+env/
+*.egg-info/
+.pytest_cache/
+
+# node
+node_modules/
+dist/
+build/
+*.log
+.npm/
+
+# downloaded reel media (never commit reel audio/video)
+media/
+downloads/
+*.mp4
+*.m4a
+*.mp3
+*.wav
+
+# local db
+*.sqlite
+*.sqlite3
+*.db
+
+# images / screenshots
+*.jpg
+*.jpeg
+
+# os / editor
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
