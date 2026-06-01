@@ -7,12 +7,22 @@ from app import store
 
 
 @pytest.fixture
-def client(monkeypatch):
-    """App wired to a fresh in-memory DB (store reads `engine` at call time, so this swap works)."""
+def client(monkeypatch, tmp_path):
+    """App wired to a fresh in-memory DB, with the network download mocked to succeed."""
     eng = create_engine(
         "sqlite://", connect_args={"check_same_thread": False}, poolclass=StaticPool
     )
     monkeypatch.setattr(store, "engine", eng)
+
+    import app.ingest as ingest_mod
+
+    def fake_download(url, *args, **kwargs):
+        p = tmp_path / "audio.m4a"
+        p.write_bytes(b"x")
+        return p
+
+    monkeypatch.setattr(ingest_mod, "download_audio", fake_download)
+
     from app.main import app
 
     with TestClient(app) as c:  # context-manager runs lifespan -> init_db() on the in-memory engine
@@ -27,9 +37,23 @@ def test_ingest_then_appears_on_dashboard(client):
     page = client.get("/")
     assert page.status_code == 200
     assert "ABC123" in page.text  # the reel url rendered on the dashboard
-    assert "done" in page.text  # stub pipeline marked it done
+    assert "done" in page.text  # pipeline (download mocked + stubs) marked it done
 
 
 def test_ingest_rejects_bad_url(client):
     resp = client.post("/ingest", json={"url": "not-a-url"})
     assert resp.status_code == 422
+
+
+def test_ingest_marks_failed_when_download_fails(client, monkeypatch):
+    import app.ingest as ingest_mod
+    from app.download import DownloadError
+
+    def boom(url, *args, **kwargs):
+        raise DownloadError("private reel")
+
+    monkeypatch.setattr(ingest_mod, "download_audio", boom)
+    client.post("/ingest", json={"url": "https://www.instagram.com/reel/PRIV/"})
+
+    page = client.get("/")
+    assert "failed" in page.text
