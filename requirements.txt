@@ -8,4 +8,6 @@ sqlmodel       # Task 2: Reel model + store (pulls SQLAlchemy + pydantic)
 jinja2         # Task 3: dashboard templates
 yt-dlp         # Task 4: download a public reel's audio
 faster-whisper # Task 5: local transcription (no API key)
-# added later: openai + pyyaml (Task 6)
+openai         # Task 6: NVIDIA NIM via the OpenAI-compatible API
+pyyaml         # Task 6: load the focus profile
+python-dotenv  # load .env in dev

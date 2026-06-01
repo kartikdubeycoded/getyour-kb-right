@@ -1,38 +1,45 @@
-"""The processing pipeline. Real stages swap in across tasks:
-download (Task 4) -> transcribe (Task 5) -> research (Task 6, stub)."""
+"""The processing pipeline: download (Task 4) -> transcribe (Task 5) -> research (Task 6)."""
+
+import json
 
 from app import store
 from app.download import DownloadError, download_audio
-from app.models import ReelStatus
+from app.models import Reel, ReelStatus
+from app.profile import load_profile
+from app.research import research_reel
 from app.transcribe import transcribe_audio
 
 
 def process_reel(reel_id: int) -> None:
-    """Run the pipeline for one reel: download + transcribe are real; research still stubbed."""
+    """Run the full pipeline for one reel: download -> transcribe -> research."""
     reel = store.get_reel(reel_id)
     if reel is None:
         return
 
     try:
-        audio_path = download_audio(reel.url)  # audio saved to media/
+        audio_path = download_audio(reel.url)
     except DownloadError as exc:
-        reel.status = ReelStatus.failed
-        reel.error = f"download failed: {exc}"
-        store.save_reel(reel)
-        return
+        return _fail(reel, f"download failed: {exc}")
 
     try:
         reel.transcript = transcribe_audio(audio_path)
-    except Exception as exc:  # decode/model errors -> mark failed, never crash the request
-        reel.status = ReelStatus.failed
-        reel.error = f"transcription failed: {exc}"
-        store.save_reel(reel)
-        return
+    except Exception as exc:  # decode/model errors
+        return _fail(reel, f"transcription failed: {exc}")
 
-    # research (Task 6) still stubbed
-    reel.summary = "<stub summary — real research lands in Task 6>"
-    reel.tools_links = '["<stub-tool-or-repo>"]'
-    reel.tag = "idea"
-    reel.take = "<stub do/skip take — personalized in Task 6>"
+    try:
+        result = research_reel(reel.transcript, load_profile())
+    except Exception as exc:  # missing key, network, or bad model output
+        return _fail(reel, f"research failed: {exc}")
+
+    reel.summary = result.summary
+    reel.tools_links = json.dumps(result.tools_links)
+    reel.tag = result.tag
+    reel.take = result.take
     reel.status = ReelStatus.done
+    store.save_reel(reel)
+
+
+def _fail(reel: Reel, reason: str) -> None:
+    reel.status = ReelStatus.failed
+    reel.error = reason
     store.save_reel(reel)

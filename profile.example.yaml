@@ -1,0 +1,6 @@
+# Your focus drives the "do this / skip this" take on each reel.
+# Copy this to profile.yaml (gitignored) and edit it to your own focus.
+focus: >
+  AI engineering, data science, multi-agent systems, RAG, and applied ML.
+not_interested: >
+  Generic get-rich-quick content, crypto hype, and unrelated lifestyle posts.

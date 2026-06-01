@@ -24,6 +24,13 @@ def client(monkeypatch, tmp_path):
     monkeypatch.setattr(ingest_mod, "download_audio", fake_download)
     monkeypatch.setattr(ingest_mod, "transcribe_audio", lambda path: "transcript text")
 
+    from app.research import ResearchResult
+
+    def fake_research(transcript, profile, **kwargs):
+        return ResearchResult(summary="s", tools_links=["t"], tag="tool", take="do it")
+
+    monkeypatch.setattr(ingest_mod, "research_reel", fake_research)
+
     from app.main import app
 
     with TestClient(app) as c:  # context-manager runs lifespan -> init_db() on the in-memory engine

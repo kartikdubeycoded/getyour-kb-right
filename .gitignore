@@ -1,8 +1,10 @@
-# secrets
+# secrets & local config
 .env
 .env.*
+!.env.example
 *.key
 secrets/
+profile.yaml
 
 # python
 __pycache__/

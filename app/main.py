@@ -4,6 +4,7 @@ walking skeleton; real stages swap in across Tasks 4-6."""
 from contextlib import asynccontextmanager
 from pathlib import Path
 
+from dotenv import load_dotenv
 from fastapi import FastAPI, Request
 from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
@@ -15,6 +16,8 @@ from app.ingest import process_reel
 from app.models import Reel
 
 BASE_DIR = Path(__file__).resolve().parent
+
+load_dotenv()  # read .env in dev (NVIDIA_API_KEY etc.)
 
 
 @asynccontextmanager
