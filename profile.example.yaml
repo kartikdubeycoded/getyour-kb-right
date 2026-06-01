@@ -1,6 +1,9 @@
-# Your focus drives the "do this / skip this" take on each reel.
-# Copy this to profile.yaml (gitignored) and edit it to your own focus.
+# Your focus profile drives the "do this / skip this" take on each reel.
+# Copy this to profile.yaml (gitignored) and edit it to your own situation.
 focus: >
-  AI engineering, data science, multi-agent systems, RAG, and applied ML.
+  Your core topics (e.g. AI engineering, data science, web dev).
+goals: >
+  What you're optimizing for right now (e.g. job-hunting, income leads, learning a specific skill).
+  Opportunities matching this can be worth acting on even if off-topic.
 not_interested: >
-  Generic get-rich-quick content, crypto hype, and unrelated lifestyle posts.
+  Topics to down-weight (e.g. hype, unrelated lifestyle content).

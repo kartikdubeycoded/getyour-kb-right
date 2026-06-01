@@ -9,23 +9,23 @@
 <body>
   <header>
     <h1>get<span>·</span>your<span>·</span>knowledge<span>·</span>right</h1>
-    <p class="sub">{{ reels|length }} reel(s) · share a reel to add more</p>
+    <p class="sub">{{ reels|length }} reel(s) · tap a card for the full breakdown</p>
   </header>
-  <main>
+  <main class="feed">
     {% if not reels %}
-      <p class="empty">Nothing yet. POST a reel URL to <code>/ingest</code>.</p>
+      <p class="empty">Nothing yet. Share a reel to <code>/ingest</code>.</p>
     {% endif %}
     {% for reel in reels %}
-    <article class="card status-{{ reel.status }}">
+    <a class="card status-{{ reel.status }}" href="/reel/{{ reel.id }}">
       <div class="row">
         <span class="tag">{{ reel.tag or "—" }}</span>
         <span class="status">{{ reel.status }}</span>
       </div>
-      <a class="url" href="{{ reel.url }}" target="_blank" rel="noopener">{{ reel.url }}</a>
       {% if reel.summary %}<p class="summary">{{ reel.summary }}</p>{% endif %}
       {% if reel.take %}<p class="take">{{ reel.take }}</p>{% endif %}
       {% if reel.error %}<p class="error">{{ reel.error }}</p>{% endif %}
-    </article>
+      <span class="more">read more →</span>
+    </a>
     {% endfor %}
   </main>
 </body>

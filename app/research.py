@@ -50,13 +50,19 @@ class ResearchResult:
 
 def _build_prompt(transcript: str, profile: dict) -> tuple[str, str]:
     system = (
-        "You analyze the transcript of a short Instagram reel and return STRICT JSON only. "
-        "Keys: summary (1-2 sentences), tools_links (array of tool/repo/course names or URLs "
-        "mentioned), tag (one of: course, tool, idea, other), take (one sentence: should the user "
-        "act on this given their focus, and why). Return ONLY the JSON object, no prose."
+        "You analyze the transcript of a short Instagram reel for a specific person and return "
+        "STRICT JSON only. Keys: "
+        "summary (about 60 words, concrete and plain — enough to know what the reel is about); "
+        "tools_links (array of tool/repo/course names or URLs mentioned, [] if none); "
+        "tag (one of: course, tool, idea, opportunity, other); "
+        "take (1-2 sentences on whether THIS person should act on it. Weigh BOTH their focus AND "
+        "their goals/situation — a high-value opportunity like a paid role, internship, or income "
+        "lead can be worth acting on even if off-topic. Be practical, not rigid). "
+        "Return ONLY the JSON object — no prose, no code fences."
     )
     user = (
-        f"User focus: {profile.get('focus', '')}\n"
+        f"Person's focus: {profile.get('focus', '')}\n"
+        f"Goals / situation: {profile.get('goals', '')}\n"
         f"Not interested in: {profile.get('not_interested', '')}\n\n"
         f"Transcript:\n{transcript}"
     )

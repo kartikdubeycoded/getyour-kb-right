@@ -44,8 +44,20 @@ def test_ingest_then_appears_on_dashboard(client):
 
     page = client.get("/")
     assert page.status_code == 200
-    assert "ABC123" in page.text  # the reel url rendered on the dashboard
-    assert "done" in page.text  # pipeline (download mocked + stubs) marked it done
+    assert "do it" in page.text  # the take rendered on the card
+    assert "done" in page.text  # pipeline (download/transcribe/research mocked) marked it done
+
+
+def test_reel_detail_shows_transcript(client):
+    client.post("/ingest", json={"url": "https://www.instagram.com/reel/ABC123/"})
+    page = client.get("/reel/1")
+    assert page.status_code == 200
+    assert "transcript text" in page.text  # full transcript on the detail page
+    assert "ABC123" in page.text  # url shown on detail
+
+
+def test_reel_detail_404(client):
+    assert client.get("/reel/999").status_code == 404
 
 
 def test_ingest_rejects_bad_url(client):

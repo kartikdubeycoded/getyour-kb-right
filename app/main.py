@@ -1,11 +1,12 @@
 """FastAPI app: ingest webhook + dashboard. The pipeline behind /ingest is stubbed in v1's
 walking skeleton; real stages swap in across Tasks 4-6."""
 
+import json
 from contextlib import asynccontextmanager
 from pathlib import Path
 
 from dotenv import load_dotenv
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
@@ -55,3 +56,18 @@ def dashboard(request: Request) -> HTMLResponse:
     return templates.TemplateResponse(
         request, "dashboard.html", {"reels": store.list_recent()}
     )
+
+
+@app.get("/reel/{reel_id}", response_class=HTMLResponse)
+def reel_detail(request: Request, reel_id: int) -> HTMLResponse:
+    """Full breakdown for one reel: take, summary, links, transcript."""
+    reel = store.get_reel(reel_id)
+    if reel is None:
+        raise HTTPException(status_code=404, detail="reel not found")
+    links: list[str] = []
+    if reel.tools_links:
+        try:
+            links = json.loads(reel.tools_links)
+        except json.JSONDecodeError:
+            links = []
+    return templates.TemplateResponse(request, "detail.html", {"reel": reel, "links": links})

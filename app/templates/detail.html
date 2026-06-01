@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>{{ reel.tag or "reel" }} · get your knowledge right</title>
+  <link rel="stylesheet" href="/static/style.css" />
+</head>
+<body>
+  <header>
+    <a class="back" href="/">← back</a>
+    <h1>{{ reel.tag or "reel" }} <span class="status">· {{ reel.status }}</span></h1>
+  </header>
+  <main class="detail">
+    <a class="url" href="{{ reel.url }}" target="_blank" rel="noopener">{{ reel.url }}</a>
+    {% if reel.error %}<p class="error">{{ reel.error }}</p>{% endif %}
+    {% if reel.take %}
+    <section><h2>Take</h2><p class="take">{{ reel.take }}</p></section>
+    {% endif %}
+    {% if reel.summary %}
+    <section><h2>Summary</h2><p>{{ reel.summary }}</p></section>
+    {% endif %}
+    {% if links %}
+    <section>
+      <h2>Tools / links</h2>
+      <ul class="links">
+        {% for link in links %}
+        <li>
+          {% if 'http' in link %}<a href="{{ link }}" target="_blank" rel="noopener">{{ link }}</a>
+          {% else %}{{ link }}{% endif %}
+        </li>
+        {% endfor %}
+      </ul>
+    </section>
+    {% endif %}
+    {% if reel.transcript %}
+    <section><h2>Transcript</h2><pre class="transcript">{{ reel.transcript }}</pre></section>
+    {% endif %}
+  </main>
+</body>
+</html>
