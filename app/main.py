@@ -2,15 +2,16 @@
 walking skeleton; real stages swap in across Tasks 4-6."""
 
 import json
+import re
 from contextlib import asynccontextmanager
 from pathlib import Path
 
 from dotenv import load_dotenv
-from fastapi import FastAPI, HTTPException, Request
+from fastapi import BackgroundTasks, FastAPI, HTTPException, Request
 from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
-from pydantic import BaseModel, HttpUrl
+from pydantic import BaseModel
 
 from app import store
 from app.ingest import process_reel
@@ -32,8 +33,11 @@ templates = Jinja2Templates(directory=str(BASE_DIR / "templates"))
 app.mount("/static", StaticFiles(directory=str(BASE_DIR.parent / "static")), name="static")
 
 
+URL_RE = re.compile(r"https?://[^\s\"']+")
+
+
 class IngestRequest(BaseModel):
-    url: HttpUrl
+    url: str  # may arrive as messy share-sheet text; we extract the real URL below
 
 
 @app.get("/health")
@@ -43,10 +47,13 @@ def health() -> dict[str, str]:
 
 
 @app.post("/ingest", status_code=202)
-def ingest(payload: IngestRequest) -> dict[str, object]:
-    """Accept a reel URL, store it, run the (stubbed) pipeline. Returns the new reel id."""
-    reel = store.save_reel(Reel(url=str(payload.url)))
-    process_reel(reel.id)  # inline for the skeleton; becomes a background task in Task 7
+def ingest(payload: IngestRequest, background_tasks: BackgroundTasks) -> dict[str, object]:
+    """Pull the URL out of whatever was shared, store it, then process in the background."""
+    match = URL_RE.search(payload.url)
+    if not match:
+        raise HTTPException(status_code=422, detail="no URL found in shared content")
+    reel = store.save_reel(Reel(url=match.group(0)))
+    background_tasks.add_task(process_reel, reel.id)  # respond instantly; process after responding
     return {"id": reel.id, "status": "accepted"}
 
 
