@@ -15,13 +15,14 @@ def client(monkeypatch, tmp_path):
     monkeypatch.setattr(store, "engine", eng)
 
     import app.ingest as ingest_mod
+    from app.download import Media
 
     def fake_download(url, *args, **kwargs):
         p = tmp_path / "audio.m4a"
         p.write_bytes(b"x")
-        return p
+        return Media(audio_path=p, caption="a caption", thumbnail_url=None)
 
-    monkeypatch.setattr(ingest_mod, "download_audio", fake_download)
+    monkeypatch.setattr(ingest_mod, "download_media", fake_download)
     monkeypatch.setattr(ingest_mod, "transcribe_audio", lambda path: "transcript text")
 
     from app.research import ResearchResult
@@ -72,7 +73,7 @@ def test_ingest_marks_failed_when_download_fails(client, monkeypatch):
     def boom(url, *args, **kwargs):
         raise DownloadError("private reel")
 
-    monkeypatch.setattr(ingest_mod, "download_audio", boom)
+    monkeypatch.setattr(ingest_mod, "download_media", boom)
     client.post("/ingest", json={"url": "https://www.instagram.com/reel/PRIV/"})
 
     page = client.get("/")

@@ -24,20 +24,22 @@ class FakeYDL:
             raise RuntimeError("Unsupported URL / private")
         self._path = self.opts["outtmpl"].replace("%(ext)s", "m4a")
         Path(self._path).write_bytes(b"fake-audio")
-        return {"ext": "m4a"}
+        return {"ext": "m4a", "description": "a caption", "thumbnail": "http://x/t.jpg"}
 
     def prepare_filename(self, info):
         return self._path
 
 
-def test_download_audio_returns_existing_path(monkeypatch, tmp_path):
+def test_download_media_returns_bundle(monkeypatch, tmp_path):
     monkeypatch.setattr(download, "yt_dlp", types.SimpleNamespace(YoutubeDL=FakeYDL))
-    path = download.download_audio("https://insta/reel/ok", media_dir=tmp_path)
-    assert path.exists()
-    assert path.read_bytes() == b"fake-audio"
+    media = download.download_media("https://insta/reel/ok", media_dir=tmp_path)
+    assert media.audio_path.exists()
+    assert media.audio_path.read_bytes() == b"fake-audio"
+    assert media.caption == "a caption"
+    assert media.thumbnail_url == "http://x/t.jpg"
 
 
-def test_download_audio_raises_downloaderror_on_failure(monkeypatch, tmp_path):
+def test_download_media_raises_downloaderror_on_failure(monkeypatch, tmp_path):
     monkeypatch.setattr(download, "yt_dlp", types.SimpleNamespace(YoutubeDL=FakeYDL))
     with pytest.raises(download.DownloadError):
-        download.download_audio("https://insta/reel/bad", media_dir=tmp_path)
+        download.download_media("https://insta/reel/bad", media_dir=tmp_path)

@@ -9,6 +9,10 @@
 <body>
   <header>
     <h1>get<span>·</span>your<span>·</span>knowledge<span>·</span>right</h1>
+    <nav class="tabs">
+      <a class="tab active" href="/">Reels</a>
+      <a class="tab" href="/github">GitHub</a>
+    </nav>
     <p class="sub">{{ reels|length }} reel(s) · tap a card for the full breakdown</p>
   </header>
   <main class="feed">
@@ -19,6 +23,7 @@
     <a class="card status-{{ reel.status }}" href="/reel/{{ reel.id }}">
       <div class="row">
         <span class="tag">{{ reel.tag or "—" }}</span>
+        {% if reel.buildable == "yes" %}<span class="badge">🔨 build</span>{% endif %}
         <span class="status">{{ reel.status }}</span>
       </div>
       {% if reel.summary %}<p class="summary">{{ reel.summary }}</p>{% endif %}

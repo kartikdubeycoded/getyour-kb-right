@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>{{ item.title }} · breakdown</title>
+  <link rel="stylesheet" href="/static/style.css" />
+</head>
+<body>
+  <header>
+    <a class="back" href="/github">← github</a>
+    <h1>{{ item.title }} <span class="status">· {{ item.meta }}</span></h1>
+  </header>
+  <main class="detail">
+    <a class="open-repo" href="{{ item.url }}" target="_blank" rel="noopener">🚀 Open on GitHub</a>
+
+    {% if item.overview %}
+    <section><h2>Overview</h2><p>{{ item.overview }}</p></section>
+    {% elif item.summary %}
+    <section><h2>Overview</h2><p>{{ item.summary }}</p></section>
+    {% endif %}
+
+    {% if item.usage %}
+    <section><h2>How to use it</h2><p>{{ item.usage }}</p></section>
+    {% endif %}
+
+    {% if builds %}
+    <section>
+      <h2>🔨 What you could build with it</h2>
+      <ul class="takeaways">{% for b in builds %}<li>{{ b }}</li>{% endfor %}</ul>
+    </section>
+    {% endif %}
+
+    {% if product_ideas %}
+    <section class="buildable">
+      <h2>💸 Product / money ideas</h2>
+      <ul class="takeaways">{% for p in product_ideas %}<li>{{ p }}</li>{% endfor %}</ul>
+    </section>
+    {% endif %}
+
+    <a class="open-repo" href="{{ item.url }}" target="_blank" rel="noopener">🚀 Open on GitHub</a>
+  </main>
+</body>
+</html>

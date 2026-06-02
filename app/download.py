@@ -1,9 +1,11 @@
-"""Download a public reel's audio with yt-dlp. Returns the local audio path; raises DownloadError
-on anything yt-dlp can't fetch (private, removed, unsupported, or network error). Audio lands in
-media/ (gitignored); faster-whisper (Task 5) decodes it directly — no system ffmpeg needed."""
+"""Download a public reel with yt-dlp. Returns a Media bundle (audio path + caption + thumbnail
+URL); raises DownloadError on anything yt-dlp can't fetch (private, removed, unsupported, or
+network error). Audio lands in media/ (gitignored); faster-whisper decodes it directly — no system
+ffmpeg needed. The caption + thumbnail let the pipeline 'see' the reel, not just hear it."""
 
 import os
 import uuid
+from dataclasses import dataclass
 from pathlib import Path
 
 import yt_dlp
@@ -15,8 +17,17 @@ class DownloadError(Exception):
     """yt-dlp could not fetch the URL (private, removed, unsupported, or network issue)."""
 
 
-def download_audio(url: str, media_dir: Path = MEDIA_DIR) -> Path:
-    """Fetch the best audio stream for `url`. Returns the saved file path."""
+@dataclass
+class Media:
+    """Everything one yt-dlp fetch gives us about a reel."""
+
+    audio_path: Path
+    caption: str | None = None  # the creator's caption (often where the real info lives)
+    thumbnail_url: str | None = None  # cover frame; fed to the vision model later
+
+
+def download_media(url: str, media_dir: Path = MEDIA_DIR) -> Media:
+    """Fetch a reel's audio + metadata. Returns a Media bundle."""
     media_dir.mkdir(parents=True, exist_ok=True)
     stem = media_dir / uuid.uuid4().hex
     opts = {
@@ -34,4 +45,8 @@ def download_audio(url: str, media_dir: Path = MEDIA_DIR) -> Path:
         raise DownloadError(str(exc)) from exc
     if not path.exists():
         raise DownloadError("download produced no file")
-    return path
+    return Media(
+        audio_path=path,
+        caption=(info.get("description") or None),
+        thumbnail_url=(info.get("thumbnail") or None),
+    )

@@ -5,7 +5,7 @@ LLMClient can be swapped in. Tests pass a fake client, so no key or network is n
 
 import json
 import os
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Protocol
 
 NIM_BASE_URL = os.getenv("NIM_BASE_URL", "https://integrate.api.nvidia.com/v1")
@@ -46,27 +46,45 @@ class ResearchResult:
     tools_links: list[str]
     tag: str  # course | tool | idea | other
     take: str
+    key_takeaways: list[str] = field(default_factory=list)
+    buildable: str = ""  # "yes" | "no"
+    build_idea: str = ""  # if buildable: what to build
+    monetization: str = ""  # if buildable: worst-case how to earn from it
 
 
-def _build_prompt(transcript: str, profile: dict) -> tuple[str, str]:
+def _build_prompt(
+    transcript: str, profile: dict, caption: str | None = None, visual: str | None = None
+) -> tuple[str, str]:
     system = (
-        "You analyze the transcript of a short Instagram reel for a specific person and return "
-        "STRICT JSON only. Keys: "
+        "You analyze a short Instagram reel for a specific person and return STRICT JSON only. "
+        "You are given up to three signals about the reel: AUDIO (spoken words), CAPTION (the "
+        "creator's text), and ON-SCREEN (text/scene read from the cover frame). Many reels are "
+        "just music over on-screen text — in those, AUDIO is noise; trust CAPTION and ON-SCREEN. "
+        "Weigh all available signals together. Keys: "
         "summary (about 60 words, concrete and plain — enough to know what the reel is about); "
+        "key_takeaways (array of 2-4 short, concrete bullet points worth remembering, [] if none); "
         "tools_links (array of tool/repo/course names or URLs mentioned, [] if none); "
         "tag (one of: course, tool, idea, opportunity, other); "
         "take (1-2 sentences on whether THIS person should act on it. Weigh BOTH their focus AND "
         "their goals/situation — a high-value opportunity like a paid role, internship, or income "
-        "lead can be worth acting on even if off-topic. Be practical, not rigid). "
+        "lead can be worth acting on even if off-topic. Be practical, not rigid); "
+        "buildable (\"yes\" or \"no\" — could THIS person build a useful tool/product/project from "
+        "the idea or problem in this reel, given their focus and goals?); "
+        "build_idea (if buildable yes: 1-2 sentences on the concrete thing to build; else \"\"); "
+        "monetization (if buildable yes: 1 sentence on a realistic worst-case way to earn from "
+        "it — freelance, a paid tool, a service; else \"\"). "
         "Return ONLY the JSON object — no prose, no code fences."
     )
-    user = (
-        f"Person's focus: {profile.get('focus', '')}\n"
-        f"Goals / situation: {profile.get('goals', '')}\n"
-        f"Not interested in: {profile.get('not_interested', '')}\n\n"
-        f"Transcript:\n{transcript}"
-    )
-    return system, user
+    parts = [
+        f"Person's focus: {profile.get('focus', '')}",
+        f"Goals / situation: {profile.get('goals', '')}",
+        f"Not interested in: {profile.get('not_interested', '')}",
+        "",
+        f"AUDIO (spoken):\n{transcript or '(none)'}",
+        f"CAPTION:\n{caption or '(none)'}",
+        f"ON-SCREEN (read from cover frame):\n{visual or '(none)'}",
+    ]
+    return system, "\n".join(parts)
 
 
 def _extract_json(raw: str) -> dict:
@@ -78,14 +96,22 @@ def _extract_json(raw: str) -> dict:
 
 
 def research_reel(
-    transcript: str, profile: dict, client: LLMClient | None = None
+    transcript: str,
+    profile: dict,
+    client: LLMClient | None = None,
+    caption: str | None = None,
+    visual: str | None = None,
 ) -> ResearchResult:
     client = client or NvidiaNimClient()
-    system, user = _build_prompt(transcript, profile)
+    system, user = _build_prompt(transcript, profile, caption, visual)
     data = _extract_json(client.complete(system, user))
     return ResearchResult(
         summary=data.get("summary", ""),
         tools_links=data.get("tools_links") or [],
         tag=data.get("tag", "other"),
         take=data.get("take", ""),
+        key_takeaways=data.get("key_takeaways") or [],
+        buildable=(data.get("buildable") or "").lower(),
+        build_idea=data.get("build_idea", ""),
+        monetization=data.get("monetization", ""),
     )
