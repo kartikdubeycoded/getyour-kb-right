@@ -102,6 +102,14 @@ def test_thumb_route_serves_saved_image(client, monkeypatch, tmp_path):
     assert client.get("/thumb/999").status_code == 404  # missing → 404
 
 
+def test_reddit_tab_shows_setup_hint_without_creds(client, monkeypatch):
+    monkeypatch.delenv("REDDIT_CLIENT_ID", raising=False)
+    monkeypatch.delenv("REDDIT_CLIENT_SECRET", raising=False)
+    page = client.get("/reddit")
+    assert page.status_code == 200
+    assert "REDDIT_CLIENT_ID" in page.text  # the dormant setup hint
+
+
 def test_ingest_rejects_bad_url(client):
     resp = client.post("/ingest", json={"url": "not-a-url"})
     assert resp.status_code == 422

@@ -13,7 +13,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel
 
-from app import github_radar, hn_radar, store
+from app import github_radar, hn_radar, reddit_radar, store
 from app.ingest import process_reel
 from app.models import Reel
 from app.profile import load_profile
@@ -105,6 +105,27 @@ def hn_refresh() -> RedirectResponse:
     items = hn_radar.fetch_stories(load_profile())
     store.replace_radar("hn", items)
     return RedirectResponse(url="/hn", status_code=303)
+
+
+@app.get("/reddit", response_class=HTMLResponse)
+def reddit_tab(request: Request) -> HTMLResponse:
+    """The Reddit radar tab. Dormant (shows a setup hint) until the app creds are in .env."""
+    return templates.TemplateResponse(
+        request,
+        "reddit.html",
+        {"items": store.list_radar("reddit"), "configured": reddit_radar.has_credentials()},
+    )
+
+
+@app.post("/reddit/refresh")
+def reddit_refresh() -> RedirectResponse:
+    """Pull a fresh batch of posts and replace the stored Reddit radar, then show the tab."""
+    if reddit_radar.has_credentials():
+        try:
+            store.replace_radar("reddit", reddit_radar.fetch_posts(load_profile()))
+        except reddit_radar.RadarError:
+            pass  # bad creds / rate limit — keep what we had, the tab still renders
+    return RedirectResponse(url="/reddit", status_code=303)
 
 
 @app.get("/github/{item_id}", response_class=HTMLResponse)
