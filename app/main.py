@@ -13,7 +13,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel
 
-from app import github_radar, store
+from app import github_radar, hn_radar, store
 from app.ingest import process_reel
 from app.models import Reel
 from app.profile import load_profile
@@ -91,6 +91,20 @@ def github_refresh() -> RedirectResponse:
     items = github_radar.fetch_repos(load_profile())
     store.replace_radar("github", items)
     return RedirectResponse(url="/github", status_code=303)
+
+
+@app.get("/hn", response_class=HTMLResponse)
+def hn_tab(request: Request) -> HTMLResponse:
+    """The Hacker News radar tab: top stories matching the user's focus topics."""
+    return templates.TemplateResponse(request, "hackernews.html", {"items": store.list_radar("hn")})
+
+
+@app.post("/hn/refresh")
+def hn_refresh() -> RedirectResponse:
+    """Pull a fresh batch of stories and replace the stored HN radar, then show the tab."""
+    items = hn_radar.fetch_stories(load_profile())
+    store.replace_radar("hn", items)
+    return RedirectResponse(url="/hn", status_code=303)
 
 
 @app.get("/github/{item_id}", response_class=HTMLResponse)
