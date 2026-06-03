@@ -2,32 +2,40 @@
 
 **Turn the reels you save into knowledge you actually use.**
 
-Share an Instagram reel to the app and it downloads the video, transcribes the audio, researches
-what it's about, and surfaces it on a dashboard with a short summary, the tools/links it mentions,
-and a *do this / skip this* take tailored to your focus — so the reels you bookmark stop
-disappearing into your DMs unread.
+Share an Instagram reel to the app and it *understands* it — hearing the audio, reading the
+caption, and seeing the on-screen text — then researches what it's about and surfaces it on a
+dashboard with a summary, key takeaways, the tools/links it mentions, whether you could **build**
+something from it, and a *do this / skip this* take tailored to your focus. Alongside reels, a
+**tech radar** pulls what's trending in your topics from GitHub, Hacker News, and Reddit — so your
+saved reels stop disappearing into your DMs unread and you stay on top of where your field is moving.
 
 ## How it works
 
 ```
-share reel URL → /ingest → download (yt-dlp) → transcribe (faster-whisper)
+share reel URL → /ingest → download (yt-dlp) → hear (faster-whisper) + read (caption) + see (vision)
               → research (LLM) → store (SQLite) → dashboard
 ```
 
+Reels that mention a GitHub repo link straight to that repo's breakdown, so the radar becomes a
+curated hub fed by both your reels and your topic searches.
+
 Ingestion is ToS-safe: you share a **public** reel's link (e.g. via an iOS Shortcut that POSTs to
-`/ingest`). No scraping, no login.
+`/ingest`). Every source uses an official API — no scraping, no login.
 
 ## Stack
 
 - Python · FastAPI · SQLite (SQLModel) · Jinja2
 - **Transcription:** local `faster-whisper` (free, no API key)
-- **Research:** an LLM via an OpenAI-compatible endpoint (free NVIDIA NIM by default), behind a small
-  interface so any provider can be swapped in
+- **Research + vision:** an LLM via an OpenAI-compatible endpoint (free NVIDIA NIM by default),
+  behind a small interface so any provider can be swapped in
+- **Tech radar:** official APIs only — GitHub Search, the Hacker News (Algolia) Search API, and the
+  Reddit OAuth API
 
 ## Status
 
-v1 in progress. The end-to-end skeleton works (ingest → store → dashboard); the real download,
-transcription, and research stages are being wired in.
+v1 works end-to-end: share a reel → it's downloaded, transcribed, read, seen, researched, and shown
+with a personalized take and a buildable verdict. The tech radar is live for GitHub and Hacker News;
+Reddit is wired and activates once you add free app credentials.
 
 ## Run it (dev)
 
@@ -56,7 +64,8 @@ pytest -q
 
 ## Roadmap
 
-- **v1** — share → transcribe → research → dashboard
-- **Tech radar** — a daily digest of new tools and ideas from across your sources
+- **v1** — share → hear/read/see → research → dashboard ✓
+- **Tech radar** — trending tools and ideas from your sources (GitHub ✓ · Hacker News ✓ · Reddit ✓) 
+- **Cross-source signal** — read across the sources to surface where your field is turning
 - **Batch player** — play a shared set of reels in order
 - **One-click deploy** — `docker compose up` for a ready-to-run instance
