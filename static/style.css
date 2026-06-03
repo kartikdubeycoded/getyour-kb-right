@@ -53,6 +53,12 @@ header h1 span { color: var(--mint); }
 .card:hover { border-color: var(--mint); transform: translateY(-2px); }
 .card.status-pending { opacity: 0.7; }
 .card.status-failed { border-color: #5a2b2b; }
+/* cover frame: bleeds to the card edges, sits above the meta row */
+.thumb {
+  width: calc(100% + 28px); margin: -14px -14px 10px; height: 120px;
+  object-fit: cover; background: #0f1211; display: block;
+  border-top-left-radius: 16px; border-top-right-radius: 16px;
+}
 .row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
 .tag {
   font-size: 0.68rem; text-transform: uppercase; letter-spacing: 0.08em;
@@ -72,6 +78,10 @@ header h1 span { color: var(--mint); }
 .more { margin-top: auto; padding-top: 0.6rem; color: var(--dim); font-size: 0.72rem; }
 code { background: #222; padding: 1px 6px; border-radius: 6px; }
 
+.detail-thumb {
+  width: 100%; max-width: 320px; margin: 14px 0 4px; border-radius: 14px;
+  display: block; background: #0f1211;
+}
 /* detail page */
 .detail { max-width: 620px; margin: 0 auto; padding: 8px 20px 64px; }
 .detail .url {

@@ -13,6 +13,9 @@
   </header>
   <main class="detail">
     <a class="url" href="{{ reel.url }}" target="_blank" rel="noopener">{{ reel.url }}</a>
+    {% if reel.thumbnail_url %}
+    <img class="detail-thumb" src="{{ reel.thumbnail_url }}" alt="" referrerpolicy="no-referrer" />
+    {% endif %}
     {% if reel.error %}<p class="error">{{ reel.error }}</p>{% endif %}
 
     {% if reel.take %}
@@ -33,6 +36,12 @@
       <h2>🔨 Buildable</h2>
       {% if reel.build_idea %}<p class="build-idea">{{ reel.build_idea }}</p>{% endif %}
       {% if reel.monetization %}<p class="monetize"><strong>Monetize:</strong> {{ reel.monetization }}</p>{% endif %}
+    </section>
+    {% endif %}
+
+    {% if repo_item %}
+    <section class="repo-link">
+      <a class="to-repo" href="/github/{{ repo_item.id }}">🔗 See repo breakdown · {{ repo_item.title }}</a>
     </section>
     {% endif %}
 

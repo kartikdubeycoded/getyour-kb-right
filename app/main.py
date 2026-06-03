@@ -8,7 +8,7 @@ from pathlib import Path
 
 from dotenv import load_dotenv
 from fastapi import BackgroundTasks, FastAPI, HTTPException, Request
-from fastapi.responses import HTMLResponse, RedirectResponse
+from fastapi.responses import FileResponse, HTMLResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel
@@ -17,6 +17,8 @@ from app import github_radar, store
 from app.ingest import process_reel
 from app.models import Reel
 from app.profile import load_profile
+from app.repo_link import find_repo
+from app.thumbs import THUMB_DIR
 
 BASE_DIR = Path(__file__).resolve().parent
 
@@ -56,6 +58,15 @@ def ingest(payload: IngestRequest, background_tasks: BackgroundTasks) -> dict[st
     reel = store.save_reel(Reel(url=match.group(0)))
     background_tasks.add_task(process_reel, reel.id)  # respond instantly; process after responding
     return {"id": reel.id, "status": "accepted"}
+
+
+@app.get("/thumb/{reel_id}")
+def thumb(reel_id: int) -> FileResponse:
+    """Serve a reel's locally-saved cover frame (we proxy it because IG's CDN blocks hotlinking)."""
+    path = THUMB_DIR / f"{reel_id}.jpg"
+    if not path.exists():
+        raise HTTPException(status_code=404, detail="no thumbnail")
+    return FileResponse(path, media_type="image/jpeg")
 
 
 @app.get("/", response_class=HTMLResponse)
@@ -117,8 +128,14 @@ def reel_detail(request: Request, reel_id: int) -> HTMLResponse:
         raise HTTPException(status_code=404, detail="reel not found")
     links = _load_json_list(reel.tools_links)
     takeaways = _load_json_list(reel.key_takeaways)
+    repo = find_repo(reel)  # does this reel mention a GitHub repo?
+    repo_item = (
+        store.find_or_create_github_item(repo[0], repo[1]) if repo else None
+    )  # reuse/create its radar entry so we can link to its breakdown page
     return templates.TemplateResponse(
-        request, "detail.html", {"reel": reel, "links": links, "takeaways": takeaways}
+        request,
+        "detail.html",
+        {"reel": reel, "links": links, "takeaways": takeaways, "repo_item": repo_item},
     )
 
 

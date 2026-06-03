@@ -7,6 +7,7 @@ from app.download import DownloadError, download_media
 from app.models import Reel, ReelStatus
 from app.profile import load_profile
 from app.research import research_reel
+from app.thumbs import save_thumbnail
 from app.transcribe import transcribe_audio
 from app.vision import read_frame
 
@@ -24,6 +25,8 @@ def process_reel(reel_id: int) -> None:
         return _fail(reel, f"download failed: {exc}")
 
     reel.caption = media.caption  # READ: the creator's caption (free, from yt-dlp)
+    # local copy — IG's CDN blocks hotlinking, so we serve the frame from our own origin
+    reel.thumbnail_url = save_thumbnail(media.thumbnail_url, reel.id)
     reel.visual = read_frame(media.thumbnail_url)  # SEE: on-screen text + scene (None on failure)
 
     try:

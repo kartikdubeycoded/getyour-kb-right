@@ -2,7 +2,7 @@ from sqlalchemy.pool import StaticPool
 from sqlmodel import create_engine
 
 from app import store
-from app.models import Reel, ReelStatus
+from app.models import RadarItem, Reel, ReelStatus
 
 
 def _memory_engine():
@@ -32,3 +32,23 @@ def test_list_recent_is_newest_first():
 def test_get_missing_returns_none():
     eng = _memory_engine()
     assert store.get_reel(999, eng) is None
+
+
+def test_find_or_create_github_item_creates_then_reuses():
+    eng = _memory_engine()
+    url = "https://github.com/foo/bar"
+    first = store.find_or_create_github_item("foo/bar", url, eng)
+    assert first.id is not None
+    assert first.source == "github"
+    # second call with the same url must reuse, not duplicate
+    second = store.find_or_create_github_item("foo/bar", url, eng)
+    assert second.id == first.id
+
+
+def test_find_or_create_reuses_existing_radar_repo():
+    eng = _memory_engine()
+    url = "https://github.com/openai/whisper"
+    item = RadarItem(source="github", title="openai/whisper", url=url, overview="cached")
+    store.replace_radar("github", [item], eng)
+    found = store.find_or_create_github_item("openai/whisper", url, eng)
+    assert found.overview == "cached"  # reused the radar-pulled item with its cached breakdown

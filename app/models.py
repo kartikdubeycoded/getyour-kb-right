@@ -25,6 +25,7 @@ class Reel(SQLModel, table=True):
     transcript: str | None = None  # what we HEAR (whisper on the audio)
     caption: str | None = None  # what we READ (the creator's caption, via yt-dlp)
     visual: str | None = None  # what we SEE (on-screen text + scene, via the vision model)
+    thumbnail_url: str | None = None  # cover frame URL, shown on the card/detail
     summary: str | None = None
     tools_links: str | None = None  # JSON-encoded list[str] (v1 keeps it simple)
     key_takeaways: str | None = None  # JSON-encoded list[str] — the bullet points worth keeping

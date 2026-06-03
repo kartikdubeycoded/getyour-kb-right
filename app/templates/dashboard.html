@@ -21,6 +21,9 @@
     {% endif %}
     {% for reel in reels %}
     <a class="card status-{{ reel.status }}" href="/reel/{{ reel.id }}">
+      {% if reel.thumbnail_url %}
+      <img class="thumb" src="{{ reel.thumbnail_url }}" alt="" loading="lazy" referrerpolicy="no-referrer" />
+      {% endif %}
       <div class="row">
         <span class="tag">{{ reel.tag or "—" }}</span>
         {% if reel.buildable == "yes" %}<span class="badge">🔨 build</span>{% endif %}

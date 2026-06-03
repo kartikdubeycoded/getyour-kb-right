@@ -61,6 +61,47 @@ def test_reel_detail_404(client):
     assert client.get("/reel/999").status_code == 404
 
 
+def test_reel_mentioning_repo_shows_breakdown_button(client):
+    from app.models import Reel
+
+    reel = store.save_reel(
+        Reel(url="https://insta/reel/X", caption="tool: github.com/openai/whisper")
+    )
+    page = client.get(f"/reel/{reel.id}")
+    assert page.status_code == 200
+    assert "See repo breakdown" in page.text
+    assert "openai/whisper" in page.text
+
+
+def test_reel_without_repo_has_no_button(client):
+    from app.models import Reel
+
+    reel = store.save_reel(Reel(url="https://insta/reel/Y", caption="a cooking reel"))
+    page = client.get(f"/reel/{reel.id}")
+    assert "See repo breakdown" not in page.text
+
+
+def test_thumbnail_renders_on_card_and_detail(client):
+    from app.models import Reel
+
+    reel = store.save_reel(
+        Reel(url="https://insta/reel/T", thumbnail_url="https://cdn/x.jpg")
+    )
+    assert "https://cdn/x.jpg" in client.get("/").text  # on the card
+    assert "https://cdn/x.jpg" in client.get(f"/reel/{reel.id}").text  # on detail
+
+
+def test_thumb_route_serves_saved_image(client, monkeypatch, tmp_path):
+    import app.main as main_mod
+
+    monkeypatch.setattr(main_mod, "THUMB_DIR", tmp_path)
+    (tmp_path / "5.jpg").write_bytes(b"IMGBYTES")
+    resp = client.get("/thumb/5")
+    assert resp.status_code == 200
+    assert resp.content == b"IMGBYTES"
+    assert client.get("/thumb/999").status_code == 404  # missing → 404
+
+
 def test_ingest_rejects_bad_url(client):
     resp = client.post("/ingest", json={"url": "not-a-url"})
     assert resp.status_code == 422

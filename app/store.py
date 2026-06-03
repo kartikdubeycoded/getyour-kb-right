@@ -62,6 +62,22 @@ def save_radar_item(item: RadarItem, eng=None) -> RadarItem:
         return merged
 
 
+def find_or_create_github_item(full_name: str, url: str, eng=None) -> RadarItem:
+    """Return the existing github radar item for this repo, or create a bare one. Lets a reel link
+    to a repo's breakdown even when the radar hasn't pulled it — the breakdown fills in on view."""
+    with Session(eng or engine) as session:
+        existing = session.exec(
+            select(RadarItem).where(RadarItem.source == "github", RadarItem.url == url)
+        ).first()
+        if existing is not None:
+            return existing
+        item = RadarItem(source="github", title=full_name, url=url, meta="via reel")
+        session.add(item)
+        session.commit()
+        session.refresh(item)
+        return item
+
+
 def list_radar(source: str, limit: int = 50, eng=None) -> list[RadarItem]:
     """Items for one radar source, highest score first."""
     with Session(eng or engine) as session:
