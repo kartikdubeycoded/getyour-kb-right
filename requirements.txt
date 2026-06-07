@@ -11,3 +11,4 @@ faster-whisper # Task 5: local transcription (no API key)
 openai         # Task 6: NVIDIA NIM via the OpenAI-compatible API
 pyyaml         # Task 6: load the focus profile
 python-dotenv  # load .env in dev
+feedparser     # tech-radar source #4: parse RSS news / lab-blog feeds

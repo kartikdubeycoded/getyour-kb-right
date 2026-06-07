@@ -78,6 +78,13 @@ def find_or_create_github_item(full_name: str, url: str, eng=None) -> RadarItem:
         return item
 
 
+def list_all_radar(limit: int = 300, eng=None) -> list[RadarItem]:
+    """Every radar item across all sources, newest first — the corpus the lanes curate from."""
+    with Session(eng or engine) as session:
+        stmt = select(RadarItem).order_by(RadarItem.id.desc()).limit(limit)
+        return list(session.exec(stmt))
+
+
 def list_radar(source: str, limit: int = 50, eng=None) -> list[RadarItem]:
     """Items for one radar source, highest score first."""
     with Session(eng or engine) as session:

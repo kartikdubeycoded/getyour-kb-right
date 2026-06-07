@@ -2,6 +2,7 @@
 walking skeleton; real stages swap in across Tasks 4-6."""
 
 import json
+import logging
 import re
 from contextlib import asynccontextmanager
 from pathlib import Path
@@ -13,7 +14,16 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel
 
-from app import github_radar, hn_radar, reddit_radar, store
+from app import (
+    arxiv_radar,
+    github_radar,
+    gnews_radar,
+    hn_radar,
+    lanes,
+    reddit_radar,
+    rss_radar,
+    store,
+)
 from app.ingest import process_reel
 from app.models import Reel
 from app.profile import load_profile
@@ -126,6 +136,79 @@ def reddit_refresh() -> RedirectResponse:
         except reddit_radar.RadarError:
             pass  # bad creds / rate limit — keep what we had, the tab still renders
     return RedirectResponse(url="/reddit", status_code=303)
+
+
+@app.get("/lanes", response_class=HTMLResponse)
+def lanes_overview(request: Request) -> HTMLResponse:
+    """Curated home: each of your aspects (lanes) with its top items pulled across ALL sources."""
+    profile = load_profile()
+    corpus = store.list_all_radar()
+    avoid = lanes.avoid_terms(profile)
+    blocks = [
+        {"idx": idx, "name": name, "picks": lanes.curate(corpus, topics, limit=6, avoid=avoid)}
+        for idx, (name, topics) in enumerate(lanes.lanes_from_profile(profile))
+    ]
+    return templates.TemplateResponse(request, "lanes.html", {"lanes": blocks})
+
+
+@app.get("/lane/{idx}", response_class=HTMLResponse)
+def lane_detail(request: Request, idx: int) -> HTMLResponse:
+    """One aspect, expanded: every matching item across sources, best match first."""
+    profile = load_profile()
+    defs = lanes.lanes_from_profile(profile)
+    if idx < 0 or idx >= len(defs):
+        raise HTTPException(status_code=404, detail="lane not found")
+    name, topics = defs[idx]
+    items = lanes.curate(store.list_all_radar(), topics, limit=50, avoid=lanes.avoid_terms(profile))
+    return templates.TemplateResponse(
+        request, "lane.html", {"name": name, "idx": idx, "items": items}
+    )
+
+
+def refresh_source(source: str, fetch, eng=None) -> bool:
+    """Pull one radar source and swap its fresh batch into the corpus — but ONLY if the fetch
+    actually returned items. A transient failure (network/parse/rate-limit like arXiv's 429) comes
+    back empty or raises; either way we KEEP the data we already have instead of wiping the source
+    to nothing. Isolated per source so one bad fetch never sinks a batch refresh. Returns whether
+    the corpus was updated."""
+    try:
+        items = fetch()
+    except Exception:  # noqa: BLE001 — a single bad source must not break the whole refresh
+        logging.warning("radar refresh: source %r failed", source, exc_info=True)
+        return False
+    if not items:
+        logging.warning("radar refresh: source %r returned nothing; kept existing items", source)
+        return False
+    store.replace_radar(source, items, eng)
+    return True
+
+
+@app.post("/refresh-all")
+def refresh_all() -> RedirectResponse:
+    """Pull every source at once into the corpus, then show the curated lanes. Each source is
+    isolated (refresh_source) so one failing or empty fetch never wipes or sinks the others."""
+    profile = load_profile()
+    refresh_source("github", lambda: github_radar.fetch_repos(profile))
+    refresh_source("hn", lambda: hn_radar.fetch_stories(profile))
+    refresh_source("news", lambda: rss_radar.fetch_news(profile))
+    refresh_source("arxiv", lambda: arxiv_radar.fetch_papers(profile))
+    refresh_source("gnews", lambda: gnews_radar.fetch_news(profile))
+    if reddit_radar.has_credentials():
+        refresh_source("reddit", lambda: reddit_radar.fetch_posts(profile))
+    return RedirectResponse(url="/lanes", status_code=303)
+
+
+@app.get("/news", response_class=HTMLResponse)
+def news_tab(request: Request) -> HTMLResponse:
+    """The news radar tab: recent tech-news + lab/vendor RSS items, ranked by your topics."""
+    return templates.TemplateResponse(request, "news.html", {"items": store.list_radar("news")})
+
+
+@app.post("/news/refresh")
+def news_refresh() -> RedirectResponse:
+    """Pull a fresh batch from the RSS feeds, replace the stored news radar, then show the tab."""
+    store.replace_radar("news", rss_radar.fetch_news(load_profile()))
+    return RedirectResponse(url="/news", status_code=303)
 
 
 @app.get("/github/{item_id}", response_class=HTMLResponse)

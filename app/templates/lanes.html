@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>lanes · get your knowledge right</title>
+  <link rel="stylesheet" href="/static/style.css" />
+</head>
+<body>
+  <header>
+    <h1>get<span>·</span>your<span>·</span>knowledge<span>·</span>right</h1>
+    <nav class="tabs">
+      <a class="tab" href="/">Reels</a>
+      <a class="tab active" href="/lanes">Lanes</a>
+      <a class="tab" href="/github">GitHub</a>
+      <a class="tab" href="/hn">Hacker News</a>
+      <a class="tab" href="/reddit">Reddit</a>
+      <a class="tab" href="/news">News</a>
+    </nav>
+    <p class="sub">
+      your aspects, curated across every source · edit them in <code>profile.yaml</code> ·
+      <form method="post" action="/refresh-all" style="display:inline">
+        <button class="refresh" type="submit">↻ refresh all sources</button>
+      </form>
+    </p>
+  </header>
+  <main>
+    {% if not lanes %}
+      <p class="empty">No lanes defined. Add a <code>lanes:</code> section to <code>profile.yaml</code>.</p>
+    {% endif %}
+    {% for lane in lanes %}
+    <section class="lane">
+      <div class="lane-head">
+        <h2>{{ lane.name }}</h2>
+        <a class="more" href="/lane/{{ lane.idx }}">see all →</a>
+      </div>
+      {% if not lane.picks %}
+        <p class="empty">Nothing matched yet — refresh the source tabs to fill the corpus.</p>
+      {% endif %}
+      <div class="feed">
+        {% for item in lane.picks %}
+        <a class="card"
+           {% if item.source == 'github' %}href="/github/{{ item.id }}"{% else %}href="{{ item.url }}" target="_blank" rel="noopener"{% endif %}>
+          <div class="row">
+            <span class="tag">{{ item.source }}</span>
+            <span class="status">{{ item.meta }}</span>
+          </div>
+          <p class="summary">{{ item.title }}</p>
+          {% if item.summary %}<p class="take">{{ item.summary }}</p>{% endif %}
+        </a>
+        {% endfor %}
+      </div>
+    </section>
+    {% endfor %}
+  </main>
+</body>
+</html>

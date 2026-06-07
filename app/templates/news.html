@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>github · get your knowledge right</title>
+  <title>news · get your knowledge right</title>
   <link rel="stylesheet" href="/static/style.css" />
 </head>
 <body>
@@ -12,31 +12,31 @@
     <nav class="tabs">
       <a class="tab" href="/">Reels</a>
       <a class="tab" href="/lanes">Lanes</a>
-      <a class="tab active" href="/github">GitHub</a>
+      <a class="tab" href="/github">GitHub</a>
       <a class="tab" href="/hn">Hacker News</a>
       <a class="tab" href="/reddit">Reddit</a>
-      <a class="tab" href="/news">News</a>
+      <a class="tab active" href="/news">News</a>
     </nav>
     <p class="sub">
-      {{ items|length }} repo(s) in your focus ·
-      <form method="post" action="/github/refresh" style="display:inline">
+      {{ items|length }} item(s) · ranked by your topics ·
+      <form method="post" action="/news/refresh" style="display:inline">
         <button class="refresh" type="submit">↻ refresh</button>
       </form>
     </p>
   </header>
   <main class="feed">
     {% if not items %}
-      <p class="empty">No repos yet. Hit <strong>↻ refresh</strong> to pull the latest in your topics.</p>
+      <p class="empty">No news yet. Hit <strong>↻ refresh</strong> to pull the latest from tech news + lab blogs.</p>
     {% endif %}
     {% for item in items %}
-    <a class="card" href="/github/{{ item.id }}">
+    <a class="card" href="{{ item.url }}" target="_blank" rel="noopener">
       <div class="row">
-        <span class="tag">github</span>
+        <span class="tag">news</span>
         <span class="status">{{ item.meta }}</span>
       </div>
       <p class="summary">{{ item.title }}</p>
       {% if item.summary %}<p class="take">{{ item.summary }}</p>{% endif %}
-      <span class="more">breakdown →</span>
+      <span class="more">open article →</span>
     </a>
     {% endfor %}
   </main>

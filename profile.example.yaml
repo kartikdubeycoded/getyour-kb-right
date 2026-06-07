@@ -7,3 +7,15 @@ goals: >
   Opportunities matching this can be worth acting on even if off-topic.
 not_interested: >
   Topics to down-weight (e.g. hype, unrelated lifestyle content).
+# Crisp keywords that knock an item out of every lane (the machine-readable form of not_interested).
+avoid_topics: [crypto, NFT, gambling, lifestyle]
+
+# Lanes = your aspects. Each lane curates across ALL radar sources (GitHub, HN, News, Reddit):
+# every stored item is scored by how many of the lane's topic words it mentions. Add your own.
+lanes:
+  - name: AI / ML
+    topics: [LLM, agents, RAG, machine learning, fine-tuning]
+  - name: Web Design
+    topics: [web design, frontend, UI, UX, CSS, animation]
+  - name: News & Launches
+    topics: [launch, funding, release, startup, OpenAI, NVIDIA]
