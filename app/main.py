@@ -8,7 +8,7 @@ from contextlib import asynccontextmanager
 from pathlib import Path
 
 from dotenv import load_dotenv
-from fastapi import BackgroundTasks, FastAPI, HTTPException, Request
+from fastapi import BackgroundTasks, Depends, FastAPI, HTTPException, Request
 from fastapi.responses import FileResponse, HTMLResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
@@ -24,6 +24,7 @@ from app import (
     rss_radar,
     store,
 )
+from app.auth import require_ingest_token
 from app.ingest import process_reel
 from app.models import Reel
 from app.profile import load_profile
@@ -60,7 +61,11 @@ def health() -> dict[str, str]:
 
 
 @app.post("/ingest", status_code=202)
-def ingest(payload: IngestRequest, background_tasks: BackgroundTasks) -> dict[str, object]:
+def ingest(
+    payload: IngestRequest,
+    background_tasks: BackgroundTasks,
+    _: None = Depends(require_ingest_token),
+) -> dict[str, object]:
     """Pull the URL out of whatever was shared, store it, then process in the background."""
     match = URL_RE.search(payload.url)
     if not match:
@@ -203,7 +208,7 @@ def refresh_source(source: str, fetch, eng=None) -> bool:
 
 
 @app.post("/refresh-all")
-def refresh_all() -> RedirectResponse:
+def refresh_all(_: None = Depends(require_ingest_token)) -> RedirectResponse:
     """Pull every source at once into the corpus, then show the curated lanes. Each source is
     isolated (refresh_source) so one failing or empty fetch never wipes or sinks the others."""
     profile = load_profile()
