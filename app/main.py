@@ -145,10 +145,29 @@ def lanes_overview(request: Request) -> HTMLResponse:
     corpus = store.list_all_radar()
     avoid = lanes.avoid_terms(profile)
     blocks = [
-        {"idx": idx, "name": name, "picks": lanes.curate(corpus, topics, limit=6, avoid=avoid)}
+        {
+            "idx": idx,
+            "name": name,
+            "picks": lanes.curate(corpus, topics, limit=6, avoid=avoid),
+            "signal": lanes.lane_signal(corpus, topics),
+        }
         for idx, (name, topics) in enumerate(lanes.lanes_from_profile(profile))
     ]
     return templates.TemplateResponse(request, "lanes.html", {"lanes": blocks})
+
+
+@app.get("/pulse", response_class=HTMLResponse)
+def pulse_view(request: Request) -> HTMLResponse:
+    """The cross-lane pulse: what's heating up across your whole spectrum right now, ranked."""
+    hot = lanes.pulse(store.list_all_radar(), load_profile())
+    return templates.TemplateResponse(request, "pulse.html", {"hot": hot})
+
+
+@app.get("/search", response_class=HTMLResponse)
+def search(request: Request, q: str = "") -> HTMLResponse:
+    """Free-text search across the WHOLE corpus, every source at once, ranked by relevance."""
+    results = lanes.search_corpus(store.list_all_radar(), q) if q.strip() else []
+    return templates.TemplateResponse(request, "search.html", {"q": q, "results": results})
 
 
 @app.get("/lane/{idx}", response_class=HTMLResponse)
@@ -188,11 +207,14 @@ def refresh_all() -> RedirectResponse:
     """Pull every source at once into the corpus, then show the curated lanes. Each source is
     isolated (refresh_source) so one failing or empty fetch never wipes or sinks the others."""
     profile = load_profile()
+    # Broad sources (gnews/arxiv) search EVERY lane's topics, so thin lanes (Web Design, Jobs) fill;
+    # github/hn stay on the focus line — they're per-topic search with tight rate limits.
+    lane_topics = lanes.search_topics(profile)
     refresh_source("github", lambda: github_radar.fetch_repos(profile))
     refresh_source("hn", lambda: hn_radar.fetch_stories(profile))
     refresh_source("news", lambda: rss_radar.fetch_news(profile))
-    refresh_source("arxiv", lambda: arxiv_radar.fetch_papers(profile))
-    refresh_source("gnews", lambda: gnews_radar.fetch_news(profile))
+    refresh_source("arxiv", lambda: arxiv_radar.fetch_papers(profile, topics=lane_topics))
+    refresh_source("gnews", lambda: gnews_radar.fetch_news(profile, topics=lane_topics))
     if reddit_radar.has_credentials():
         refresh_source("reddit", lambda: reddit_radar.fetch_posts(profile))
     return RedirectResponse(url="/lanes", status_code=303)

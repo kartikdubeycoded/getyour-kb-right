@@ -26,6 +26,28 @@ def lanes_from_profile(profile: dict) -> list[tuple[str, list[str]]]:
     return lanes or [("All", topics_from_profile(profile))]
 
 
+def search_topics(profile: dict, limit: int = 12) -> list[str]:
+    """Every topic worth fetching: the focus-line topics PLUS every lane's topics, deduped
+    (case-insensitive, first spelling wins) and capped. The broad sources (Google News, arXiv)
+    search THIS instead of just the focus line, so the thin lanes (Web Design, Jobs) actually fill
+    instead of staying empty."""
+    out: list[str] = []
+    seen: set[str] = set()
+
+    def _add(topic: str) -> None:
+        key = topic.lower()
+        if topic and key not in seen:
+            seen.add(key)
+            out.append(topic)
+
+    for topic in topics_from_profile(profile):
+        _add(topic)
+    for _name, topics in lanes_from_profile(profile):
+        for topic in topics:
+            _add(topic)
+    return out[:limit]
+
+
 def avoid_terms(profile: dict) -> list[str]:
     """Words that should knock an item out of every lane — from profile.avoid_topics (a crisp list
     of keywords like crypto / NFT / gambling). Personalization: the user's dislikes, made real."""
@@ -47,6 +69,55 @@ def score_item(item: RadarItem, topics: list[str], avoid: list[str] = ()) -> int
     if any(_matches(text, a) for a in avoid):
         return 0
     return sum(1 for t in topics if _matches(text, t.lower()))
+
+
+def pulse(items: list[RadarItem], profile: dict, top: int = 10) -> list[dict]:
+    """The cross-lane PULSE: what's hottest across your WHOLE spectrum right now. Runs the signal
+    computation over the union of every lane's topics (search_topics), so one glance shows where
+    tech is moving in the aspects you care about — ranked by source-spread, then volume."""
+    return lane_signal(items, search_topics(profile), top=top)
+
+
+def search_corpus(items: list[RadarItem], query: str, limit: int = 50) -> list[RadarItem]:
+    """Free-text search across the WHOLE radar corpus, every source at once. Splits the query into
+    terms and ranks each item by weighted matches — a hit in the TITLE counts more than one in the
+    summary/meta — so the most on-topic items float up. Case-insensitive substring match (typing
+    'diffus' finds 'diffusion'). Items matching no term drop out. (v1 is keyword-relevance; the
+    ranker is the seam where embeddings/semantic search swap in later.)"""
+    terms = [t for t in re.split(r"\s+", query.strip().lower()) if t]
+    if not terms:
+        return []
+    scored: list[tuple[int, RadarItem]] = []
+    for item in items:
+        title = (item.title or "").lower()
+        body = f"{item.summary or ''} {item.meta or ''}".lower()
+        score = sum((3 if term in title else 1 if term in body else 0) for term in terms)
+        if score:
+            scored.append((score, item))
+    scored.sort(key=lambda pair: (pair[0], pair[1].id or 0), reverse=True)
+    return [item for _score, item in scored[:limit]]
+
+
+def lane_signal(items: list[RadarItem], topics: list[str], top: int = 5) -> list[dict]:
+    """What's heating up in a lane RIGHT NOW: for each of the lane's topics, how many corpus items
+    mention it (mentions) and across how many DISTINCT sources (sources). A topic echoed by
+    github + hn + news + arxiv is a stronger signal than one source shouting, so we rank by
+    source-spread first, then raw volume. Topics with zero mentions drop out. This is the
+    intelligence layer: reads the corpus the lanes already curate — no new fetch, no new table."""
+    rows: list[dict] = []
+    for topic in topics:
+        term = topic.lower()
+        sources: set[str] = set()
+        mentions = 0
+        for item in items:
+            text = f"{item.title} {item.summary or ''} {item.meta or ''}".lower()
+            if _matches(text, term):
+                mentions += 1
+                sources.add(item.source)
+        if mentions:
+            rows.append({"topic": topic, "mentions": mentions, "sources": len(sources)})
+    rows.sort(key=lambda r: (r["sources"], r["mentions"]), reverse=True)
+    return rows[:top]
 
 
 def curate(

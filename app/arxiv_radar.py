@@ -20,10 +20,13 @@ def _clean(text: str, limit: int) -> str:
     return re.sub(r"\s+", " ", (text or "")).strip()[:limit]
 
 
-def fetch_papers(profile: dict, max_results: int = 20) -> list[RadarItem]:
-    """Most-recent papers across the profile's topics, de-duplicated (source='arxiv'). All topics
-    go in ONE `OR` query — arXiv rate-limits bursts (HTTP 429), so we ask it a single time."""
-    topics = topics_from_profile(profile)
+def fetch_papers(
+    profile: dict, max_results: int = 20, topics: list[str] | None = None
+) -> list[RadarItem]:
+    """Most-recent papers across the given topics (defaults to the profile's focus topics),
+    de-duplicated (source='arxiv'). All topics go in ONE `OR` query — arXiv rate-limits bursts
+    (HTTP 429), so we ask it a single time. Pass lane topics here to fill the thin lanes."""
+    topics = topics or topics_from_profile(profile)
     if not topics:
         return []
     search = " OR ".join(f"all:{topic}" for topic in topics)

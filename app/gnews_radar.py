@@ -13,11 +13,15 @@ SEARCH = "https://news.google.com/rss/search"
 _UA = "Mozilla/5.0 (get-your-knowledge-right)"
 
 
-def fetch_news(profile: dict, per_topic: int = 4) -> list[RadarItem]:
-    """Recent news across the profile's topics, de-duplicated, as RadarItems (source='gnews')."""
+def fetch_news(
+    profile: dict, per_topic: int = 4, topics: list[str] | None = None
+) -> list[RadarItem]:
+    """Recent news across the given topics (defaults to the profile's focus topics), de-duplicated,
+    as RadarItems (source='gnews'). Pass lane topics here so the thin lanes (Web Design, Jobs) fill
+    from Google News' broad coverage."""
     items: list[RadarItem] = []
     seen: set[str] = set()
-    for topic in topics_from_profile(profile):
+    for topic in topics or topics_from_profile(profile):
         query = urllib.parse.urlencode({"q": topic, "hl": "en-US", "gl": "US", "ceid": "US:en"})
         try:
             parsed = feedparser.parse(f"{SEARCH}?{query}", agent=_UA)

@@ -30,3 +30,19 @@ def test_fetch_news_handles_missing_source(monkeypatch):
 
     items = gnews_radar.fetch_news({"focus": "AI"})
     assert items[0].meta == "🔎 Google News"  # falls back when no publisher
+
+
+def test_fetch_news_searches_passed_topics_not_just_focus(monkeypatch):
+    queried: list[str] = []
+
+    def capture(url, agent=None):
+        queried.append(url)
+        return _feed([])
+
+    monkeypatch.setattr(gnews_radar.feedparser, "parse", capture)
+    # lane topics injected — these, not the focus line, must drive the search queries
+    gnews_radar.fetch_news({"focus": "AI"}, topics=["web design", "UX"])
+
+    assert any("web+design" in u or "web%20design" in u for u in queried)  # lane topic searched
+    assert any("UX" in u for u in queried)
+    assert not any("AI" in u for u in queried)  # focus line was overridden, not appended

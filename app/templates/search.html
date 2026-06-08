@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>search · get your knowledge right</title>
+  <link rel="stylesheet" href="/static/style.css" />
+</head>
+<body>
+  <header>
+    <h1>get<span>·</span>your<span>·</span>knowledge<span>·</span>right</h1>
+    <nav class="tabs">
+      <a class="tab" href="/">Reels</a>
+      <a class="tab" href="/lanes">Lanes</a>
+      <a class="tab" href="/github">GitHub</a>
+      <a class="tab" href="/hn">Hacker News</a>
+      <a class="tab" href="/reddit">Reddit</a>
+      <a class="tab" href="/news">News</a>
+    </nav>
+    <form class="searchbar" method="get" action="/search">
+      <input type="search" name="q" value="{{ q }}" placeholder="search every source — repos, news, papers…" autofocus />
+      <button type="submit">search</button>
+    </form>
+    {% if q %}<p class="sub">{{ results|length }} result(s) for <strong>{{ q }}</strong> · ranked by relevance across all sources</p>{% endif %}
+  </header>
+  <main class="feed">
+    {% if q and not results %}
+      <p class="empty">Nothing matched <strong>{{ q }}</strong>. Try a broader term, or refresh the sources first.</p>
+    {% endif %}
+    {% for item in results %}
+    <a class="card"
+       {% if item.source == 'github' %}href="/github/{{ item.id }}"{% else %}href="{{ item.url }}" target="_blank" rel="noopener"{% endif %}>
+      <div class="row">
+        <span class="tag">{{ item.source }}</span>
+        <span class="status">{{ item.meta }}</span>
+      </div>
+      <p class="summary">{{ item.title }}</p>
+      {% if item.summary %}<p class="take">{{ item.summary }}</p>{% endif %}
+    </a>
+    {% endfor %}
+  </main>
+</body>
+</html>

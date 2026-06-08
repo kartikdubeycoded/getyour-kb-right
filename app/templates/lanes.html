@@ -17,8 +17,12 @@
       <a class="tab" href="/reddit">Reddit</a>
       <a class="tab" href="/news">News</a>
     </nav>
+    <form class="searchbar" method="get" action="/search">
+      <input type="search" name="q" placeholder="search every source — repos, news, papers…" />
+      <button type="submit">search</button>
+    </form>
     <p class="sub">
-      your aspects, curated across every source · edit them in <code>profile.yaml</code> ·
+      <a class="more" href="/pulse">🔥 see the pulse</a> · your aspects, curated across every source · edit them in <code>profile.yaml</code> ·
       <form method="post" action="/refresh-all" style="display:inline">
         <button class="refresh" type="submit">↻ refresh all sources</button>
       </form>
@@ -34,6 +38,13 @@
         <h2>{{ lane.name }}</h2>
         <a class="more" href="/lane/{{ lane.idx }}">see all →</a>
       </div>
+      {% if lane.signal %}
+      <p class="signal">🔥 heating up:
+        {% for s in lane.signal %}
+        <span class="sig" title="{{ s.mentions }} item(s) across {{ s.sources }} source(s)">{{ s.topic }}<small>{{ s.sources }}×src</small></span>{% if not loop.last %} · {% endif %}
+        {% endfor %}
+      </p>
+      {% endif %}
       {% if not lane.picks %}
         <p class="empty">Nothing matched yet — refresh the source tabs to fill the corpus.</p>
       {% endif %}
