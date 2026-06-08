@@ -64,3 +64,50 @@ def test_blank_token_env_is_treated_as_unset(monkeypatch, blank):
     monkeypatch.setenv("INGEST_TOKEN", blank)
     r = client.post("/ingest", json={"url": "https://example.com/reel/abc"})
     assert r.status_code == 202
+
+
+# --- whole-app gate (read routes too, via HTTP Basic Auth for browsers) ---
+
+
+def test_dashboard_open_when_token_unset(monkeypatch):
+    """Unset token -> the dashboard is reachable without creds (localhost dev)."""
+    monkeypatch.delenv("INGEST_TOKEN", raising=False)
+    assert client.get("/").status_code == 200
+
+
+def test_dashboard_gated_when_token_set(monkeypatch):
+    """Token set -> a browser hitting the dashboard with no creds gets 401 + a Basic-Auth challenge
+    (so the browser shows a login box instead of leaking the corpus)."""
+    monkeypatch.setenv("INGEST_TOKEN", "s3cret")
+    r = client.get("/")
+    assert r.status_code == 401
+    assert r.headers.get("WWW-Authenticate", "").lower().startswith("basic")
+
+
+def test_dashboard_via_basic_auth(monkeypatch):
+    """Browser path: the shared token as the Basic-Auth password (any username) opens the app."""
+    monkeypatch.setenv("INGEST_TOKEN", "s3cret")
+    assert client.get("/", auth=("katti", "s3cret")).status_code == 200
+
+
+def test_dashboard_via_header_token(monkeypatch):
+    """Machine path: the same X-Ingest-Token header also opens read routes."""
+    monkeypatch.setenv("INGEST_TOKEN", "s3cret")
+    assert client.get("/", headers={"X-Ingest-Token": "s3cret"}).status_code == 200
+
+
+def test_basic_auth_wrong_password_rejected(monkeypatch):
+    monkeypatch.setenv("INGEST_TOKEN", "s3cret")
+    assert client.get("/", auth=("katti", "nope")).status_code == 401
+
+
+def test_health_is_exempt_from_gate(monkeypatch):
+    """Liveness probe must stay open even when the gate is on."""
+    monkeypatch.setenv("INGEST_TOKEN", "s3cret")
+    assert client.get("/health").status_code == 200
+
+
+def test_static_is_exempt_from_gate(monkeypatch):
+    """Public CSS isn't secret; leave /static open so styling never needs the token."""
+    monkeypatch.setenv("INGEST_TOKEN", "s3cret")
+    assert client.get("/static/style.css").status_code == 200

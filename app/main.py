@@ -8,14 +8,15 @@ from contextlib import asynccontextmanager
 from pathlib import Path
 
 from dotenv import load_dotenv
-from fastapi import BackgroundTasks, Depends, FastAPI, HTTPException, Request
-from fastapi.responses import FileResponse, HTMLResponse, RedirectResponse
+from fastapi import BackgroundTasks, FastAPI, HTTPException, Request
+from fastapi.responses import FileResponse, HTMLResponse, RedirectResponse, Response
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel
 
 from app import (
     arxiv_radar,
+    auth,
     github_radar,
     gnews_radar,
     hn_radar,
@@ -24,7 +25,6 @@ from app import (
     rss_radar,
     store,
 )
-from app.auth import require_ingest_token
 from app.ingest import process_reel
 from app.models import Reel
 from app.profile import load_profile
@@ -47,6 +47,22 @@ templates = Jinja2Templates(directory=str(BASE_DIR / "templates"))
 app.mount("/static", StaticFiles(directory=str(BASE_DIR.parent / "static")), name="static")
 
 
+@app.middleware("http")
+async def gate(request: Request, call_next):
+    """One shared-secret gate over the WHOLE app. Off when INGEST_TOKEN is unset; when set, every
+    route except /health and /static needs the token (X-Ingest-Token header for the iOS Shortcut,
+    or HTTP Basic Auth for a browser). A miss returns 401 with a Basic-Auth challenge so the
+    browser prompts for the password — keeps the corpus private once the app is tunnelled."""
+    if not auth.is_exempt(request.url.path) and not auth.is_authorized(
+        request.headers.get("x-ingest-token"), request.headers.get("authorization")
+    ):
+        return Response(
+            status_code=401,
+            headers={"WWW-Authenticate": 'Basic realm="get-your-knowledge-right"'},
+        )
+    return await call_next(request)
+
+
 URL_RE = re.compile(r"https?://[^\s\"']+")
 
 
@@ -61,11 +77,7 @@ def health() -> dict[str, str]:
 
 
 @app.post("/ingest", status_code=202)
-def ingest(
-    payload: IngestRequest,
-    background_tasks: BackgroundTasks,
-    _: None = Depends(require_ingest_token),
-) -> dict[str, object]:
+def ingest(payload: IngestRequest, background_tasks: BackgroundTasks) -> dict[str, object]:
     """Pull the URL out of whatever was shared, store it, then process in the background."""
     match = URL_RE.search(payload.url)
     if not match:
@@ -208,7 +220,7 @@ def refresh_source(source: str, fetch, eng=None) -> bool:
 
 
 @app.post("/refresh-all")
-def refresh_all(_: None = Depends(require_ingest_token)) -> RedirectResponse:
+def refresh_all() -> RedirectResponse:
     """Pull every source at once into the corpus, then show the curated lanes. Each source is
     isolated (refresh_source) so one failing or empty fetch never wipes or sinks the others."""
     profile = load_profile()
