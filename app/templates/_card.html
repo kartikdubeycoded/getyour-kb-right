@@ -1,0 +1,21 @@
+{# One radar-item card, shared by every feed page. `card_image` is a Jinja global (app/cards.py):
+   a real thumbnail (GitHub avatar) or None -> a designed per-source gradient tile. `more` is the
+   optional footer label ("breakdown", "open article", ...). #}
+{% macro radar_card(item, more=None) %}
+<a class="card"
+   {% if item.source == 'github' %}href="/github/{{ item.id }}"{% else %}href="{{ item.url }}" target="_blank" rel="noopener"{% endif %}>
+  {% set img = card_image(item) %}
+  {% if img %}
+  <img class="card-img" src="{{ img }}" alt="" loading="lazy" referrerpolicy="no-referrer" />
+  {% else %}
+  <div class="card-img card-img--{{ item.source }}"><span>{{ item.source }}</span></div>
+  {% endif %}
+  <div class="row">
+    <span class="tag">{{ item.source }}</span>
+    <span class="status">{{ item.meta }}</span>
+  </div>
+  <p class="summary">{{ item.title }}</p>
+  {% if item.summary %}<p class="take">{{ item.summary }}</p>{% endif %}
+  {% if more %}<span class="more">{{ more }} &rarr;</span>{% endif %}
+</a>
+{% endmacro %}

@@ -59,6 +59,27 @@ header h1 span { color: var(--mint); }
   object-fit: cover; background: #0f1211; display: block;
   border-top-left-radius: 16px; border-top-right-radius: 16px;
 }
+/* radar card image: a real thumbnail (GitHub avatar) or a designed per-source gradient tile.
+   bleeds to the card edges like .thumb, sits above the meta row */
+.card-img {
+  width: calc(100% + 28px); margin: -14px -14px 11px; height: 112px;
+  object-fit: cover; display: block; background: #0f1211;
+  border-top-left-radius: 16px; border-top-right-radius: 16px;
+}
+div.card-img {                       /* the fallback tile (no real image) */
+  display: flex; align-items: center; justify-content: center;
+}
+div.card-img span {
+  font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.16em;
+  font-weight: 800; color: rgba(255, 255, 255, 0.9);
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.35);
+}
+.card-img--news   { background: linear-gradient(135deg, #2b6fff, #0b2e6b); }
+.card-img--hn     { background: linear-gradient(135deg, #ff7a45, #b5371b); }
+.card-img--arxiv  { background: linear-gradient(135deg, #c5303a, #6e0f12); }
+.card-img--gnews  { background: linear-gradient(135deg, #3ca564, #146b34); }
+.card-img--reddit { background: linear-gradient(135deg, #ff5722, #a52c00); }
+.card-img--github { background: linear-gradient(135deg, #2d333b, #14171b); }
 .row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
 .tag {
   font-size: 0.68rem; text-transform: uppercase; letter-spacing: 0.08em;

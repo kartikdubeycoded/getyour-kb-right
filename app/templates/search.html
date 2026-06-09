@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% from "_card.html" import radar_card %}
 {% set active_tab = "lanes" %}
 
 {% block title %}search &middot; get your knowledge right{% endblock %}
@@ -17,15 +18,7 @@
       <p class="empty">Nothing matched <strong>{{ q }}</strong>. Try a broader term, or refresh the sources first.</p>
     {% endif %}
     {% for item in results %}
-    <a class="card"
-       {% if item.source == 'github' %}href="/github/{{ item.id }}"{% else %}href="{{ item.url }}" target="_blank" rel="noopener"{% endif %}>
-      <div class="row">
-        <span class="tag">{{ item.source }}</span>
-        <span class="status">{{ item.meta }}</span>
-      </div>
-      <p class="summary">{{ item.title }}</p>
-      {% if item.summary %}<p class="take">{{ item.summary }}</p>{% endif %}
-    </a>
+    {{ radar_card(item) }}
     {% endfor %}
   </main>
 {% endblock %}

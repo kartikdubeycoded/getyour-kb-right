@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% from "_card.html" import radar_card %}
 {% set active_tab = "github" %}
 
 {% block title %}github &middot; get your knowledge right{% endblock %}
@@ -18,15 +19,7 @@
       <p class="empty">No repos yet. Hit <strong>&#8635; refresh</strong> to pull the latest in your topics.</p>
     {% endif %}
     {% for item in items %}
-    <a class="card" href="/github/{{ item.id }}">
-      <div class="row">
-        <span class="tag">github</span>
-        <span class="status">{{ item.meta }}</span>
-      </div>
-      <p class="summary">{{ item.title }}</p>
-      {% if item.summary %}<p class="take">{{ item.summary }}</p>{% endif %}
-      <span class="more">breakdown &rarr;</span>
-    </a>
+    {{ radar_card(item, "breakdown") }}
     {% endfor %}
   </main>
 {% endblock %}

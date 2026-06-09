@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% from "_card.html" import radar_card %}
 {% set active_tab = "lanes" %}
 
 {% block title %}lanes &middot; get your knowledge right{% endblock %}
@@ -39,15 +40,7 @@
       {% endif %}
       <div class="feed">
         {% for item in lane.picks %}
-        <a class="card"
-           {% if item.source == 'github' %}href="/github/{{ item.id }}"{% else %}href="{{ item.url }}" target="_blank" rel="noopener"{% endif %}>
-          <div class="row">
-            <span class="tag">{{ item.source }}</span>
-            <span class="status">{{ item.meta }}</span>
-          </div>
-          <p class="summary">{{ item.title }}</p>
-          {% if item.summary %}<p class="take">{{ item.summary }}</p>{% endif %}
-        </a>
+        {{ radar_card(item) }}
         {% endfor %}
       </div>
     </section>

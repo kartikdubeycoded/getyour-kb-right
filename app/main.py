@@ -17,6 +17,7 @@ from pydantic import BaseModel
 from app import (
     arxiv_radar,
     auth,
+    cards,
     github_radar,
     gnews_radar,
     hn_radar,
@@ -44,6 +45,7 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(title="get-your-knowledge-right", lifespan=lifespan)
 templates = Jinja2Templates(directory=str(BASE_DIR / "templates"))
+templates.env.globals["card_image"] = cards.card_image  # used by the shared _card.html macro
 app.mount("/static", StaticFiles(directory=str(BASE_DIR.parent / "static")), name="static")
 
 
