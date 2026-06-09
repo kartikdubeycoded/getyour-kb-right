@@ -8,7 +8,7 @@ from contextlib import asynccontextmanager
 from pathlib import Path
 
 from dotenv import load_dotenv
-from fastapi import BackgroundTasks, FastAPI, HTTPException, Request
+from fastapi import BackgroundTasks, FastAPI, Form, HTTPException, Request
 from fastapi.responses import FileResponse, HTMLResponse, RedirectResponse, Response
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
@@ -187,6 +187,34 @@ def search(request: Request, q: str = "") -> HTMLResponse:
     """Free-text search across the WHOLE corpus, every source at once, ranked by relevance."""
     results = lanes.search_corpus(store.list_all_radar(), q) if q.strip() else []
     return templates.TemplateResponse(request, "search.html", {"q": q, "results": results})
+
+
+def _back(request: Request, default: str = "/saved") -> str:
+    """Where to send the user after a save/unsave: back to the page they were on (same-host
+    Referer), else a safe default. Guards against an off-site open redirect."""
+    ref = request.headers.get("referer") or ""
+    host = request.headers.get("host") or ""
+    return ref if (ref and host and f"//{host}" in ref) else default
+
+
+@app.post("/save")
+def save_item(request: Request, item_id: int = Form(...)) -> RedirectResponse:
+    """Keep a radar item on the shortlist (idempotent), then return to where you were."""
+    store.save_radar(item_id)
+    return RedirectResponse(url=_back(request), status_code=303)
+
+
+@app.post("/unsave")
+def unsave_item(request: Request, url: str = Form(...)) -> RedirectResponse:
+    """Drop an item from the shortlist, then return to where you were."""
+    store.unsave(url)
+    return RedirectResponse(url=_back(request), status_code=303)
+
+
+@app.get("/saved", response_class=HTMLResponse)
+def saved_view(request: Request) -> HTMLResponse:
+    """Your curated shortlist — the items you decided are worth acting on, newest first."""
+    return templates.TemplateResponse(request, "saved.html", {"items": store.list_saved()})
 
 
 @app.get("/lane/{idx}", response_class=HTMLResponse)

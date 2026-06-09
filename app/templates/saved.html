@@ -1,0 +1,20 @@
+{% extends "base.html" %}
+{% from "_card.html" import radar_card %}
+{% set active_tab = "saved" %}
+
+{% block title %}saved &middot; get your knowledge right{% endblock %}
+
+{% block header_extra %}
+    <p class="sub">{{ items|length }} kept &middot; the picks you decided are worth acting on</p>
+{% endblock %}
+
+{% block body %}
+  <main class="feed feed--hero">
+    {% if not items %}
+      <p class="empty">Nothing saved yet. Hit <strong>&#9734;</strong> on any card to keep it here.</p>
+    {% endif %}
+    {% for item in items %}
+    {{ radar_card(item, saved=True) }}
+    {% endfor %}
+  </main>
+{% endblock %}

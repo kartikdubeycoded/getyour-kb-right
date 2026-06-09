@@ -1,9 +1,15 @@
-{# One radar-item card, shared by every feed page. `card_image` is a Jinja global (app/cards.py):
-   a real thumbnail (GitHub avatar) or None -> a designed per-source gradient tile. `more` is the
-   optional footer label ("breakdown", "open article", ...). #}
-{% macro radar_card(item, more=None) %}
-<a class="card"
-   {% if item.source == 'github' %}href="/github/{{ item.id }}"{% else %}href="{{ item.url }}" target="_blank" rel="noopener"{% endif %}>
+{# One radar-item card, shared by every feed page AND the /saved view.
+   `card_image` is a Jinja global (app/cards.py): a real thumbnail or None -> a per-source tile.
+   `more` is the optional footer label. `saved=True` swaps the ☆ save button for a ✕ remove button
+   (used on /saved). The whole card is clickable via a stretched .card-link; the save button sits
+   above it (z-index) so a <button> never nests inside the <a>. #}
+{% macro radar_card(item, more=None, saved=False) %}
+<div class="card">
+  {% if item.source == 'github' and not saved %}
+  <a class="card-link" href="/github/{{ item.id }}" aria-label="{{ item.title }}"></a>
+  {% else %}
+  <a class="card-link" href="{{ item.url }}" target="_blank" rel="noopener" aria-label="{{ item.title }}"></a>
+  {% endif %}
   {% set img = card_image(item) %}
   {% if img %}
   <img class="card-img" src="{{ img }}" alt="" loading="lazy" referrerpolicy="no-referrer" />
@@ -17,5 +23,16 @@
   <p class="summary">{{ item.title }}</p>
   {% if item.summary %}<p class="take">{{ item.summary }}</p>{% endif %}
   {% if more %}<span class="more">{{ more }} &rarr;</span>{% endif %}
-</a>
+  {% if saved %}
+  <form class="save is-saved" method="post" action="/unsave">
+    <input type="hidden" name="url" value="{{ item.url }}" />
+    <button type="submit" title="remove from saved" aria-label="remove from saved">&times;</button>
+  </form>
+  {% else %}
+  <form class="save" method="post" action="/save">
+    <input type="hidden" name="item_id" value="{{ item.id }}" />
+    <button type="submit" title="save to your shortlist" aria-label="save">&#9734;</button>
+  </form>
+  {% endif %}
+</div>
 {% endmacro %}

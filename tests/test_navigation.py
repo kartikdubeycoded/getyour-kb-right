@@ -26,6 +26,7 @@ def test_collection_pages_share_one_active_nav_tab(monkeypatch):
         expected = {
             "/": "/",
             "/lanes": "/lanes",
+            "/saved": "/saved",
             "/pulse": "/lanes",
             "/search?q=agent": "/lanes",
             "/github": "/github",

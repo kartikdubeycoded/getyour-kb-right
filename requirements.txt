@@ -12,3 +12,4 @@ openai         # Task 6: NVIDIA NIM via the OpenAI-compatible API
 pyyaml         # Task 6: load the focus profile
 python-dotenv  # load .env in dev
 feedparser     # tech-radar source #4: parse RSS news / lab-blog feeds
+python-multipart  # parse the save/unsave form posts (FastAPI Form)
