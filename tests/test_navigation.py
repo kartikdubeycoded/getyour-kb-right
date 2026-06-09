@@ -24,7 +24,7 @@ def _active_tab(html: str) -> str:
 def test_collection_pages_share_one_active_nav_tab(monkeypatch):
     with _client(monkeypatch) as client:
         expected = {
-            "/": "/",
+            "/reels": "/reels",
             "/lanes": "/lanes",
             "/saved": "/saved",
             "/pulse": "/lanes",

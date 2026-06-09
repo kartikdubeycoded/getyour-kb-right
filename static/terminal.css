@@ -1,0 +1,157 @@
+/* J.A.R.V.I.S knowledge terminal — the command-center skin. Isolated: only terminal.html links
+   this, so it can't disturb the existing tabbed pages (they keep style.css until step 2). */
+:root {
+  --bg: #06090d;
+  --panel: #0a0f16;
+  --panel-2: #0c121b;
+  --line: rgba(56, 225, 255, 0.22);
+  --line-soft: rgba(56, 225, 255, 0.10);
+  --cyan: #38e1ff;
+  --cyan-dim: #6fb4c9;
+  --txt: #d4ecf4;
+  --dim: #6d8694;
+  --amber: #ffb454;
+  --green: #54e08a;
+  --red: #ff5c6c;
+}
+* { box-sizing: border-box; }
+html, body { height: 100%; }
+body {
+  margin: 0;
+  background:
+    radial-gradient(1200px 500px at 50% -160px, rgba(56, 225, 255, 0.07), transparent 70%),
+    linear-gradient(var(--line-soft) 1px, transparent 1px) 0 0 / 100% 34px,
+    var(--bg);
+  color: var(--txt);
+  font-family: "JetBrains Mono", ui-monospace, "SF Mono", "Cascadia Code", Consolas, monospace;
+  font-size: 13px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  letter-spacing: 0.01em;
+}
+a { color: inherit; text-decoration: none; }
+
+/* faint scanlines overlay for the HUD feel */
+body::after {
+  content: ""; position: fixed; inset: 0; pointer-events: none; z-index: 9;
+  background: repeating-linear-gradient(transparent 0 2px, rgba(0, 0, 0, 0.13) 2px 3px);
+  mix-blend-mode: overlay; opacity: 0.5;
+}
+
+/* top HUD bar */
+.hud {
+  display: flex; align-items: center; gap: 16px;
+  padding: 12px 18px; border-bottom: 1px solid var(--line);
+  background: linear-gradient(180deg, rgba(56, 225, 255, 0.05), transparent);
+  position: sticky; top: 0; z-index: 10; backdrop-filter: blur(6px);
+}
+.hud .brand {
+  font-weight: 700; letter-spacing: 0.18em; color: var(--cyan);
+  text-shadow: 0 0 12px rgba(56, 225, 255, 0.55); white-space: nowrap; font-size: 0.92rem;
+}
+.hud .brand b { color: var(--txt); }
+.hud .search { flex: 1; display: flex; align-items: center; gap: 8px; }
+.hud .search input {
+  flex: 1; background: var(--panel); border: 1px solid var(--line); border-radius: 6px;
+  color: var(--txt); padding: 8px 12px; font: inherit; letter-spacing: 0.04em;
+}
+.hud .search input::placeholder { color: var(--dim); }
+.hud .search input:focus {
+  outline: none; border-color: var(--cyan); box-shadow: 0 0 0 1px var(--cyan), 0 0 16px rgba(56, 225, 255, 0.25);
+}
+.hud .kbd { color: var(--dim); border: 1px solid var(--line); border-radius: 4px; padding: 2px 6px; font-size: 0.72rem; }
+.hud .live { color: var(--green); letter-spacing: 0.18em; font-size: 0.72rem; display: flex; align-items: center; gap: 6px; }
+.hud .live::before {
+  content: ""; width: 7px; height: 7px; border-radius: 50%; background: var(--green);
+  box-shadow: 0 0 8px var(--green); animation: pulse 1.6s ease-in-out infinite;
+}
+.hud .clock { color: var(--cyan-dim); font-variant-numeric: tabular-nums; font-size: 0.8rem; }
+.hud form.inline { display: inline; margin: 0; }
+.hud .refresh {
+  background: none; border: 1px solid var(--line); color: var(--cyan); font: inherit;
+  border-radius: 6px; padding: 7px 12px; cursor: pointer; letter-spacing: 0.06em;
+}
+.hud .refresh:hover { border-color: var(--cyan); box-shadow: 0 0 14px rgba(56, 225, 255, 0.3); }
+@keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.35; } }
+
+/* command-center grid */
+.terminal {
+  display: grid; gap: 12px; padding: 14px;
+  grid-template-columns: 300px minmax(0, 1.5fr) 300px;
+  grid-template-areas:
+    "signal stream saved"
+    "lanes  stream reels";
+  max-width: 1500px; margin: 0 auto;
+}
+.signal { grid-area: signal; }
+.lanes  { grid-area: lanes; }
+.stream { grid-area: stream; }
+.saved  { grid-area: saved; }
+.reels  { grid-area: reels; }
+
+.panel {
+  background: var(--panel); border: 1px solid var(--line); border-radius: 8px;
+  display: flex; flex-direction: column; min-height: 0;
+  box-shadow: inset 0 0 30px rgba(56, 225, 255, 0.03);
+}
+.panel-h {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 9px 12px; border-bottom: 1px solid var(--line);
+  color: var(--cyan); letter-spacing: 0.18em; font-size: 0.7rem; text-transform: uppercase;
+}
+.panel-h .n { color: var(--dim); letter-spacing: 0.1em; }
+.panel-h a { color: var(--cyan-dim); }
+.panel-h a:hover { color: var(--cyan); }
+.panel-body { padding: 8px 6px; overflow: auto; }
+.stream .panel-body { max-height: 72vh; }
+.signal .panel-body, .lanes .panel-body, .saved .panel-body, .reels .panel-body { max-height: 34vh; }
+
+/* a generic row inside a panel */
+.row {
+  display: flex; align-items: center; gap: 10px; padding: 6px 8px;
+  border-radius: 5px; border: 1px solid transparent;
+}
+.row:hover { background: var(--panel-2); border-color: var(--line-soft); }
+.row .t { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.row .t:hover { white-space: normal; }
+
+/* source chip */
+.src {
+  font-size: 0.64rem; text-transform: uppercase; letter-spacing: 0.1em; color: var(--bg);
+  background: var(--cyan-dim); border-radius: 3px; padding: 1px 6px; min-width: 38px; text-align: center;
+}
+.src.github { background: #8b98a5; } .src.hn { background: #ff7a45; }
+.src.news { background: #4aa3ff; } .src.gnews { background: #54e08a; }
+.src.arxiv { background: #ff6b73; } .src.reddit { background: #ff8a4c; }
+.time { color: var(--dim); font-size: 0.72rem; font-variant-numeric: tabular-nums; }
+
+/* signal bars */
+.sig-row { display: grid; grid-template-columns: 92px 1fr 28px; align-items: center; gap: 8px; padding: 5px 8px; }
+.sig-row .lab { color: var(--txt); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sig-bar { height: 8px; background: var(--panel-2); border-radius: 999px; overflow: hidden; }
+.sig-bar > span {
+  display: block; height: 100%; border-radius: 999px;
+  background: linear-gradient(90deg, var(--cyan-dim), var(--cyan));
+  box-shadow: 0 0 10px rgba(56, 225, 255, 0.5);
+}
+.sig-row .v { color: var(--cyan); text-align: right; font-size: 0.74rem; }
+
+/* lane row */
+.lane-row { display: flex; align-items: center; justify-content: space-between; padding: 7px 9px; border-radius: 5px; }
+.lane-row:hover { background: var(--panel-2); }
+.lane-row .c { color: var(--cyan); font-variant-numeric: tabular-nums; }
+.lane-row .c.zero { color: var(--dim); }
+
+/* saved / reels chips */
+.chips { display: flex; flex-wrap: wrap; gap: 6px; padding: 4px 6px; }
+.chip {
+  border: 1px solid var(--line); border-radius: 999px; padding: 3px 10px; color: var(--cyan-dim);
+  font-size: 0.74rem; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.chip:hover { border-color: var(--cyan); color: var(--cyan); }
+.empty { color: var(--dim); padding: 10px; font-size: 0.8rem; }
+
+@media (max-width: 1000px) {
+  .terminal { grid-template-columns: 1fr; grid-template-areas: "signal" "lanes" "stream" "saved" "reels"; }
+  .stream .panel-body { max-height: none; }
+}

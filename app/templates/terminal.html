@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>J.A.R.V.I.S · knowledge terminal</title>
+  <link rel="stylesheet" href="/static/terminal.css" />
+</head>
+<body>
+  <header class="hud">
+    <span class="brand">J.A.R.V.I.S<b> // KNOWLEDGE TERMINAL</b></span>
+    <form class="search" method="get" action="/search">
+      <input id="q" type="search" name="q" placeholder="search every source — repos · news · papers · saved…" autocomplete="off" />
+      <span class="kbd">/</span>
+    </form>
+    <span class="clock" id="clock">--:--:--</span>
+    <span class="live">LIVE</span>
+    <form class="inline" method="post" action="/refresh-all">
+      <button class="refresh" type="submit">↻ SYNC</button>
+    </form>
+  </header>
+
+  <main class="terminal">
+    <!-- SIGNAL -->
+    <section class="panel signal">
+      <div class="panel-h"><span>◢ Signal</span><span class="n">heating up</span></div>
+      <div class="panel-body">
+        {% if not signal %}<p class="empty">No signal yet — hit ↻ SYNC.</p>{% endif %}
+        {% for s in signal %}
+        <a class="sig-row" href="/search?q={{ s.topic | urlencode }}">
+          <span class="lab">{{ s.topic }}</span>
+          <span class="sig-bar"><span style="width: {{ s.pct }}%"></span></span>
+          <span class="v">{{ s.mentions }}</span>
+        </a>
+        {% endfor %}
+      </div>
+    </section>
+
+    <!-- STREAM -->
+    <section class="panel stream">
+      <div class="panel-h"><span>◢ Stream</span><span class="n">{{ stream|length }} · all sources</span></div>
+      <div class="panel-body">
+        {% if not stream %}<p class="empty">Corpus empty — hit ↻ SYNC to pull every source.</p>{% endif %}
+        {% for item in stream %}
+        <a class="row" {% if item.source == 'github' %}href="/github/{{ item.id }}"{% else %}href="{{ item.url }}" target="_blank" rel="noopener"{% endif %}>
+          <span class="time">{{ item.created_at.strftime('%H:%M') }}</span>
+          <span class="src {{ item.source }}">{{ item.source }}</span>
+          <span class="t">{{ item.title }}</span>
+        </a>
+        {% endfor %}
+      </div>
+    </section>
+
+    <!-- LANES -->
+    <section class="panel lanes">
+      <div class="panel-h"><span>◢ Lanes</span><a href="/lanes">all →</a></div>
+      <div class="panel-body">
+        {% for lane in lanes %}
+        <a class="lane-row" href="/lane/{{ lane.idx }}">
+          <span>▸ {{ lane.name }}</span>
+          <span class="c {% if not lane.count %}zero{% endif %}">{{ lane.count }}</span>
+        </a>
+        {% endfor %}
+      </div>
+    </section>
+
+    <!-- SAVED -->
+    <section class="panel saved">
+      <div class="panel-h"><span>★ Saved</span><a href="/saved">{{ saved|length }} →</a></div>
+      <div class="panel-body">
+        {% if not saved %}<p class="empty">Nothing kept yet.</p>{% endif %}
+        <div class="chips">
+          {% for item in saved %}
+          <a class="chip" href="{{ item.url }}" target="_blank" rel="noopener">{{ item.title }}</a>
+          {% endfor %}
+        </div>
+      </div>
+    </section>
+
+    <!-- REELS -->
+    <section class="panel reels">
+      <div class="panel-h"><span>◢ Reels</span><a href="/reels">all →</a></div>
+      <div class="panel-body">
+        {% if not reels %}<p class="empty">No reels yet.</p>{% endif %}
+        {% for reel in reels %}
+        <a class="row" href="/reel/{{ reel.id }}">
+          <span class="src">reel</span>
+          <span class="t">{{ reel.summary or reel.tag or reel.url }}</span>
+        </a>
+        {% endfor %}
+      </div>
+    </section>
+  </main>
+
+  <script>
+    const clk = document.getElementById('clock');
+    setInterval(() => { clk.textContent = new Date().toLocaleTimeString('en-GB'); }, 1000);
+    clk.textContent = new Date().toLocaleTimeString('en-GB');
+    // press "/" anywhere to jump to search
+    document.addEventListener('keydown', (e) => {
+      if (e.key === '/' && document.activeElement.id !== 'q') { e.preventDefault(); document.getElementById('q').focus(); }
+    });
+  </script>
+</body>
+</html>

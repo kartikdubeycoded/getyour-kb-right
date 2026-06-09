@@ -43,7 +43,7 @@ def test_ingest_then_appears_on_dashboard(client):
     assert resp.status_code == 202
     assert resp.json()["id"] is not None
 
-    page = client.get("/")
+    page = client.get("/reels")
     assert page.status_code == 200
     assert "do it" in page.text  # the take rendered on the card
     assert "done" in page.text  # pipeline (download/transcribe/research mocked) marked it done
@@ -87,7 +87,7 @@ def test_thumbnail_renders_on_card_and_detail(client):
     reel = store.save_reel(
         Reel(url="https://insta/reel/T", thumbnail_url="https://cdn/x.jpg")
     )
-    assert "https://cdn/x.jpg" in client.get("/").text  # on the card
+    assert "https://cdn/x.jpg" in client.get("/reels").text  # on the card
     assert "https://cdn/x.jpg" in client.get(f"/reel/{reel.id}").text  # on detail
 
 
@@ -125,5 +125,5 @@ def test_ingest_marks_failed_when_download_fails(client, monkeypatch):
     monkeypatch.setattr(ingest_mod, "download_media", boom)
     client.post("/ingest", json={"url": "https://www.instagram.com/reel/PRIV/"})
 
-    page = client.get("/")
+    page = client.get("/reels")
     assert "failed" in page.text

@@ -99,11 +99,38 @@ def thumb(reel_id: int) -> FileResponse:
 
 
 @app.get("/", response_class=HTMLResponse)
-def dashboard(request: Request) -> HTMLResponse:
-    """Render processed reels, newest first."""
+def home(request: Request) -> HTMLResponse:
+    """The command center: signal + lanes + a live stream across every source + saved + reels,
+    all on one screen (the JARVIS terminal)."""
+    profile = load_profile()
+    corpus = store.list_all_radar()
+    avoid = lanes.avoid_terms(profile)
+    lane_rows = [
+        {"idx": idx, "name": name,
+         "count": len(lanes.curate(corpus, topics, limit=500, avoid=avoid))}
+        for idx, (name, topics) in enumerate(lanes.lanes_from_profile(profile))
+    ]
+    signal = lanes.pulse(corpus, profile, top=8)
+    smax = max((s["mentions"] for s in signal), default=1) or 1
+    for s in signal:
+        s["pct"] = max(8, round(s["mentions"] / smax * 100))  # min 8% so the bar is always visible
     return templates.TemplateResponse(
-        request, "dashboard.html", {"reels": store.list_recent()}
+        request,
+        "terminal.html",
+        {
+            "signal": signal,
+            "lanes": lane_rows,
+            "stream": corpus[:40],
+            "saved": store.list_saved(),
+            "reels": store.list_recent(limit=8),
+        },
     )
+
+
+@app.get("/reels", response_class=HTMLResponse)
+def reels_dashboard(request: Request) -> HTMLResponse:
+    """The reels gallery, newest first."""
+    return templates.TemplateResponse(request, "dashboard.html", {"reels": store.list_recent()})
 
 
 @app.get("/github", response_class=HTMLResponse)
