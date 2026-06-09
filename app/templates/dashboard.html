@@ -1,24 +1,11 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>get your knowledge right</title>
-  <link rel="stylesheet" href="/static/style.css" />
-</head>
-<body>
-  <header>
-    <h1>get<span>·</span>your<span>·</span>knowledge<span>·</span>right</h1>
-    <nav class="tabs">
-      <a class="tab active" href="/">Reels</a>
-      <a class="tab" href="/lanes">Lanes</a>
-      <a class="tab" href="/github">GitHub</a>
-      <a class="tab" href="/hn">Hacker News</a>
-      <a class="tab" href="/reddit">Reddit</a>
-      <a class="tab" href="/news">News</a>
-    </nav>
-    <p class="sub">{{ reels|length }} reel(s) · tap a card for the full breakdown</p>
-  </header>
+{% extends "base.html" %}
+{% set active_tab = "reels" %}
+
+{% block header_extra %}
+    <p class="sub">{{ reels|length }} reel(s) &middot; tap a card for the full breakdown</p>
+{% endblock %}
+
+{% block body %}
   <main class="feed">
     {% if not reels %}
       <p class="empty">Nothing yet. Share a reel to <code>/ingest</code>.</p>
@@ -29,16 +16,15 @@
       <img class="thumb" src="{{ reel.thumbnail_url }}" alt="" loading="lazy" referrerpolicy="no-referrer" />
       {% endif %}
       <div class="row">
-        <span class="tag">{{ reel.tag or "—" }}</span>
-        {% if reel.buildable == "yes" %}<span class="badge">🔨 build</span>{% endif %}
+        <span class="tag">{{ reel.tag or "&mdash;" }}</span>
+        {% if reel.buildable == "yes" %}<span class="badge">&#128296; build</span>{% endif %}
         <span class="status">{{ reel.status }}</span>
       </div>
       {% if reel.summary %}<p class="summary">{{ reel.summary }}</p>{% endif %}
       {% if reel.take %}<p class="take">{{ reel.take }}</p>{% endif %}
       {% if reel.error %}<p class="error">{{ reel.error }}</p>{% endif %}
-      <span class="more">read more →</span>
+      <span class="more">read more &rarr;</span>
     </a>
     {% endfor %}
   </main>
-</body>
-</html>
+{% endblock %}

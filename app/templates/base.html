@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>{% block title %}get your knowledge right{% endblock %}</title>
+  <link rel="stylesheet" href="/static/style.css" />
+</head>
+<body>
+  <header>
+    <h1>get<span>&middot;</span>your<span>&middot;</span>knowledge<span>&middot;</span>right</h1>
+    <nav class="tabs">
+      <a class="tab{% if active_tab == 'reels' %} active{% endif %}" href="/">Reels</a>
+      <a class="tab{% if active_tab == 'lanes' %} active{% endif %}" href="/lanes">Lanes</a>
+      <a class="tab{% if active_tab == 'github' %} active{% endif %}" href="/github">GitHub</a>
+      <a class="tab{% if active_tab == 'hn' %} active{% endif %}" href="/hn">Hacker News</a>
+      <a class="tab{% if active_tab == 'reddit' %} active{% endif %}" href="/reddit">Reddit</a>
+      <a class="tab{% if active_tab == 'news' %} active{% endif %}" href="/news">News</a>
+    </nav>
+    {% block header_extra %}{% endblock %}
+  </header>
+  {% block body %}{% endblock %}
+</body>
+</html>

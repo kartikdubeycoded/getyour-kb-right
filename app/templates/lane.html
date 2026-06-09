@@ -1,27 +1,16 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>{{ name }} · get your knowledge right</title>
-  <link rel="stylesheet" href="/static/style.css" />
-</head>
-<body>
-  <header>
-    <h1>get<span>·</span>your<span>·</span>knowledge<span>·</span>right</h1>
-    <nav class="tabs">
-      <a class="tab" href="/">Reels</a>
-      <a class="tab active" href="/lanes">Lanes</a>
-      <a class="tab" href="/github">GitHub</a>
-      <a class="tab" href="/hn">Hacker News</a>
-      <a class="tab" href="/reddit">Reddit</a>
-      <a class="tab" href="/news">News</a>
-    </nav>
-    <p class="sub"><a class="more" href="/lanes">← all lanes</a> · <strong>{{ name }}</strong> · {{ items|length }} item(s) across all sources</p>
-  </header>
+{% extends "base.html" %}
+{% set active_tab = "lanes" %}
+
+{% block title %}{{ name }} &middot; get your knowledge right{% endblock %}
+
+{% block header_extra %}
+    <p class="sub"><a class="more" href="/lanes">&larr; all lanes</a> &middot; <strong>{{ name }}</strong> &middot; {{ items|length }} item(s) across all sources</p>
+{% endblock %}
+
+{% block body %}
   <main class="feed">
     {% if not items %}
-      <p class="empty">Nothing matched this lane yet — refresh the source tabs to fill the corpus.</p>
+      <p class="empty">Nothing matched this lane yet &mdash; refresh the source tabs to fill the corpus.</p>
     {% endif %}
     {% for item in items %}
     <a class="card"
@@ -35,5 +24,4 @@
     </a>
     {% endfor %}
   </main>
-</body>
-</html>
+{% endblock %}

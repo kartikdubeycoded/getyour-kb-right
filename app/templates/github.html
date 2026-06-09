@@ -1,32 +1,21 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>github · get your knowledge right</title>
-  <link rel="stylesheet" href="/static/style.css" />
-</head>
-<body>
-  <header>
-    <h1>get<span>·</span>your<span>·</span>knowledge<span>·</span>right</h1>
-    <nav class="tabs">
-      <a class="tab" href="/">Reels</a>
-      <a class="tab" href="/lanes">Lanes</a>
-      <a class="tab active" href="/github">GitHub</a>
-      <a class="tab" href="/hn">Hacker News</a>
-      <a class="tab" href="/reddit">Reddit</a>
-      <a class="tab" href="/news">News</a>
-    </nav>
+{% extends "base.html" %}
+{% set active_tab = "github" %}
+
+{% block title %}github &middot; get your knowledge right{% endblock %}
+
+{% block header_extra %}
     <p class="sub">
-      {{ items|length }} repo(s) in your focus ·
+      {{ items|length }} repo(s) in your focus &middot;
       <form method="post" action="/github/refresh" style="display:inline">
-        <button class="refresh" type="submit">↻ refresh</button>
+        <button class="refresh" type="submit">&#8635; refresh</button>
       </form>
     </p>
-  </header>
+{% endblock %}
+
+{% block body %}
   <main class="feed">
     {% if not items %}
-      <p class="empty">No repos yet. Hit <strong>↻ refresh</strong> to pull the latest in your topics.</p>
+      <p class="empty">No repos yet. Hit <strong>&#8635; refresh</strong> to pull the latest in your topics.</p>
     {% endif %}
     {% for item in items %}
     <a class="card" href="/github/{{ item.id }}">
@@ -36,9 +25,8 @@
       </div>
       <p class="summary">{{ item.title }}</p>
       {% if item.summary %}<p class="take">{{ item.summary }}</p>{% endif %}
-      <span class="more">breakdown →</span>
+      <span class="more">breakdown &rarr;</span>
     </a>
     {% endfor %}
   </main>
-</body>
-</html>
+{% endblock %}

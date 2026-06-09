@@ -1,33 +1,22 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>lanes · get your knowledge right</title>
-  <link rel="stylesheet" href="/static/style.css" />
-</head>
-<body>
-  <header>
-    <h1>get<span>·</span>your<span>·</span>knowledge<span>·</span>right</h1>
-    <nav class="tabs">
-      <a class="tab" href="/">Reels</a>
-      <a class="tab active" href="/lanes">Lanes</a>
-      <a class="tab" href="/github">GitHub</a>
-      <a class="tab" href="/hn">Hacker News</a>
-      <a class="tab" href="/reddit">Reddit</a>
-      <a class="tab" href="/news">News</a>
-    </nav>
+{% extends "base.html" %}
+{% set active_tab = "lanes" %}
+
+{% block title %}lanes &middot; get your knowledge right{% endblock %}
+
+{% block header_extra %}
     <form class="searchbar" method="get" action="/search">
-      <input type="search" name="q" placeholder="search every source — repos, news, papers…" />
+      <input type="search" name="q" placeholder="search every source &mdash; repos, news, papers&hellip;" />
       <button type="submit">search</button>
     </form>
     <p class="sub">
-      <a class="more" href="/pulse">🔥 see the pulse</a> · your aspects, curated across every source · edit them in <code>profile.yaml</code> ·
+      <a class="more" href="/pulse">&#128293; see the pulse</a> &middot; your aspects, curated across every source &middot; edit them in <code>profile.yaml</code> &middot;
       <form method="post" action="/refresh-all" style="display:inline">
-        <button class="refresh" type="submit">↻ refresh all sources</button>
+        <button class="refresh" type="submit">&#8635; refresh all sources</button>
       </form>
     </p>
-  </header>
+{% endblock %}
+
+{% block body %}
   <main>
     {% if not lanes %}
       <p class="empty">No lanes defined. Add a <code>lanes:</code> section to <code>profile.yaml</code>.</p>
@@ -36,17 +25,17 @@
     <section class="lane">
       <div class="lane-head">
         <h2>{{ lane.name }}</h2>
-        <a class="more" href="/lane/{{ lane.idx }}">see all →</a>
+        <a class="more" href="/lane/{{ lane.idx }}">see all &rarr;</a>
       </div>
       {% if lane.signal %}
-      <p class="signal">🔥 heating up:
+      <p class="signal">&#128293; heating up:
         {% for s in lane.signal %}
-        <span class="sig" title="{{ s.mentions }} item(s) across {{ s.sources }} source(s)">{{ s.topic }}<small>{{ s.sources }}×src</small></span>{% if not loop.last %} · {% endif %}
+        <span class="sig" title="{{ s.mentions }} item(s) across {{ s.sources }} source(s)">{{ s.topic }}<small>{{ s.sources }}&times;src</small></span>{% if not loop.last %} &middot; {% endif %}
         {% endfor %}
       </p>
       {% endif %}
       {% if not lane.picks %}
-        <p class="empty">Nothing matched yet — refresh the source tabs to fill the corpus.</p>
+        <p class="empty">Nothing matched yet &mdash; refresh the source tabs to fill the corpus.</p>
       {% endif %}
       <div class="feed">
         {% for item in lane.picks %}
@@ -64,5 +53,4 @@
     </section>
     {% endfor %}
   </main>
-</body>
-</html>
+{% endblock %}

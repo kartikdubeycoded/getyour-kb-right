@@ -1,37 +1,25 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>pulse · get your knowledge right</title>
-  <link rel="stylesheet" href="/static/style.css" />
-</head>
-<body>
-  <header>
-    <h1>get<span>·</span>your<span>·</span>knowledge<span>·</span>right</h1>
-    <nav class="tabs">
-      <a class="tab" href="/">Reels</a>
-      <a class="tab" href="/lanes">Lanes</a>
-      <a class="tab" href="/github">GitHub</a>
-      <a class="tab" href="/hn">Hacker News</a>
-      <a class="tab" href="/reddit">Reddit</a>
-      <a class="tab" href="/news">News</a>
-    </nav>
-    <p class="sub">🔥 the pulse · what's heating up across your whole spectrum right now · ranked by how many sources echo it</p>
-  </header>
+{% extends "base.html" %}
+{% set active_tab = "lanes" %}
+
+{% block title %}pulse &middot; get your knowledge right{% endblock %}
+
+{% block header_extra %}
+    <p class="sub">&#128293; the pulse &middot; what's heating up across your whole spectrum right now &middot; ranked by how many sources echo it</p>
+{% endblock %}
+
+{% block body %}
   <main>
     {% if not hot %}
-      <p class="empty">Nothing's warm yet — hit <strong>↻ refresh all sources</strong> on the Lanes page to fill the corpus.</p>
+      <p class="empty">Nothing's warm yet &mdash; hit <strong>&#8635; refresh all sources</strong> on the Lanes page to fill the corpus.</p>
     {% endif %}
     <ol class="pulse-list">
       {% for h in hot %}
       <li class="pulse-row">
         <span class="pulse-rank">{{ loop.index }}</span>
         <a class="pulse-topic" href="/search?q={{ h.topic | urlencode }}">{{ h.topic }}</a>
-        <span class="pulse-meta"><strong>{{ h.sources }}</strong> sources · <strong>{{ h.mentions }}</strong> items</span>
+        <span class="pulse-meta"><strong>{{ h.sources }}</strong> sources &middot; <strong>{{ h.mentions }}</strong> items</span>
       </li>
       {% endfor %}
     </ol>
   </main>
-</body>
-</html>
+{% endblock %}

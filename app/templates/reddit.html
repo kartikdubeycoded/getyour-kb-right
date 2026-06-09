@@ -1,31 +1,20 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>reddit · get your knowledge right</title>
-  <link rel="stylesheet" href="/static/style.css" />
-</head>
-<body>
-  <header>
-    <h1>get<span>·</span>your<span>·</span>knowledge<span>·</span>right</h1>
-    <nav class="tabs">
-      <a class="tab" href="/">Reels</a>
-      <a class="tab" href="/lanes">Lanes</a>
-      <a class="tab" href="/github">GitHub</a>
-      <a class="tab" href="/hn">Hacker News</a>
-      <a class="tab active" href="/reddit">Reddit</a>
-      <a class="tab" href="/news">News</a>
-    </nav>
+{% extends "base.html" %}
+{% set active_tab = "reddit" %}
+
+{% block title %}reddit &middot; get your knowledge right{% endblock %}
+
+{% block header_extra %}
     {% if configured %}
     <p class="sub">
-      {{ items|length }} post(s) this week ·
+      {{ items|length }} post(s) this week &middot;
       <form method="post" action="/reddit/refresh" style="display:inline">
-        <button class="refresh" type="submit">↻ refresh</button>
+        <button class="refresh" type="submit">&#8635; refresh</button>
       </form>
     </p>
     {% endif %}
-  </header>
+{% endblock %}
+
+{% block body %}
   <main class="feed">
     {% if not configured %}
       <p class="empty">
@@ -35,7 +24,7 @@
         <code>.env</code> and restart.
       </p>
     {% elif not items %}
-      <p class="empty">No posts yet. Hit <strong>↻ refresh</strong> to pull this week's top in your subs.</p>
+      <p class="empty">No posts yet. Hit <strong>&#8635; refresh</strong> to pull this week's top in your subs.</p>
     {% endif %}
     {% for item in items %}
     <a class="card" href="{{ item.url }}" target="_blank" rel="noopener">
@@ -45,9 +34,8 @@
       </div>
       <p class="summary">{{ item.title }}</p>
       {% if item.summary %}<p class="take">{{ item.summary }}</p>{% endif %}
-      <span class="more">open on reddit →</span>
+      <span class="more">open on reddit &rarr;</span>
     </a>
     {% endfor %}
   </main>
-</body>
-</html>
+{% endblock %}
