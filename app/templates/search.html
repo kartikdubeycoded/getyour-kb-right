@@ -13,7 +13,7 @@
 {% endblock %}
 
 {% block body %}
-  <main class="feed">
+  <main class="feed feed--hero">
     {% if q and not results %}
       <p class="empty">Nothing matched <strong>{{ q }}</strong>. Try a broader term, or refresh the sources first.</p>
     {% endif %}

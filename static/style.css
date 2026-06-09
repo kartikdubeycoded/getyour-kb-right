@@ -13,7 +13,7 @@ body {
   font-family: ui-sans-serif, system-ui, -apple-system, sans-serif;
   line-height: 1.55;
 }
-header { max-width: 620px; margin: 0 auto; padding: 40px 20px 16px; }
+header { max-width: 980px; margin: 0 auto; padding: 40px 20px 16px; }
 h1 { margin: 0; font-size: 1.4rem; letter-spacing: 0.02em; }
 h1 span.status { color: var(--dim); font-size: 0.8rem; font-weight: 400; }
 header h1 span { color: var(--mint); }
@@ -30,13 +30,25 @@ header h1 span { color: var(--mint); }
 }
 .back { color: var(--mint); text-decoration: none; font-size: 0.85rem; }
 
-/* feed — grid of tall portrait cards (reel-gallery), 2-up on phones */
+/* feed — editorial grid of portrait cards; wider container for a magazine layout */
 .feed {
-  max-width: 620px; margin: 0 auto; padding: 8px 20px 64px;
-  display: grid; gap: 14px;
-  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  max-width: 980px; margin: 0 auto; padding: 8px 20px 64px;
+  display: grid; gap: 16px;
+  grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
 }
 .empty { color: var(--dim); grid-column: 1 / -1; }
+
+/* magazine hero: the first card on a single-source page leads, spanning two columns */
+.feed--hero > .card:first-child {
+  grid-column: span 2; aspect-ratio: auto;
+}
+.feed--hero > .card:first-child .card-img,
+.feed--hero > .card:first-child .thumb { height: 240px; }
+.feed--hero > .card:first-child .summary { font-size: 1.15rem; -webkit-line-clamp: 4; }
+.feed--hero > .card:first-child .take { font-size: 0.92rem; -webkit-line-clamp: 6; }
+@media (max-width: 600px) {
+  .feed--hero > .card:first-child { grid-column: auto; }  /* full-width on phones */
+}
 .card {
   display: flex;
   flex-direction: column;
