@@ -6,7 +6,7 @@ import os
 
 from sqlmodel import Session, SQLModel, create_engine, select
 
-from app.models import RadarItem, Reel
+from app.models import RadarItem, Reel, SavedItem
 
 DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///reels.db")
 engine = create_engine(DATABASE_URL, connect_args={"check_same_thread": False})
@@ -83,6 +83,47 @@ def list_all_radar(limit: int = 300, eng=None) -> list[RadarItem]:
     with Session(eng or engine) as session:
         stmt = select(RadarItem).order_by(RadarItem.id.desc()).limit(limit)
         return list(session.exec(stmt))
+
+
+def save_radar(radar_id: int, eng=None) -> SavedItem | None:
+    """Snapshot a live radar item into the durable shortlist. Idempotent by url (saving the same
+    item twice returns the existing row). Returns None if the radar item doesn't exist."""
+    with Session(eng or engine) as session:
+        item = session.get(RadarItem, radar_id)
+        if item is None:
+            return None
+        existing = session.exec(select(SavedItem).where(SavedItem.url == item.url)).first()
+        if existing is not None:
+            return existing
+        saved = SavedItem(
+            source=item.source, title=item.title, url=item.url,
+            summary=item.summary, meta=item.meta,
+        )
+        session.add(saved)
+        session.commit()
+        session.refresh(saved)
+        return saved
+
+
+def unsave(url: str, eng=None) -> None:
+    """Drop an item from the shortlist (by url)."""
+    with Session(eng or engine) as session:
+        for row in session.exec(select(SavedItem).where(SavedItem.url == url)):
+            session.delete(row)
+        session.commit()
+
+
+def list_saved(eng=None) -> list[SavedItem]:
+    """The shortlist, most-recently-saved first."""
+    with Session(eng or engine) as session:
+        stmt = select(SavedItem).order_by(SavedItem.saved_at.desc(), SavedItem.id.desc())
+        return list(session.exec(stmt))
+
+
+def saved_urls(eng=None) -> set[str]:
+    """The set of saved urls — so feed cards can show whether an item is already kept."""
+    with Session(eng or engine) as session:
+        return set(session.exec(select(SavedItem.url)))
 
 
 def list_radar(source: str, limit: int = 50, eng=None) -> list[RadarItem]:

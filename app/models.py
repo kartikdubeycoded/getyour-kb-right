@@ -55,3 +55,19 @@ class RadarItem(SQLModel, table=True):
     usage: str | None = None  # how you'd actually use it
     builds: str | None = None  # JSON list[str] — things you could build USING it
     product_ideas: str | None = None  # JSON list[str] — monetizable / product angles
+
+
+class SavedItem(SQLModel, table=True):
+    """A radar item the user chose to keep — a durable SNAPSHOT, not a flag on the live item.
+    The corpus is wiped and re-inserted on every source refresh (store.replace_radar), so a saved
+    flag there would vanish; copying the display fields here means the shortlist survives. Same
+    display shape as RadarItem (source/title/url/summary/meta) so the card macro renders it as-is.
+    `url` is the identity — saving the same item twice is a no-op."""
+
+    id: int | None = Field(default=None, primary_key=True)
+    source: str = Field(index=True)
+    title: str
+    url: str = Field(index=True, unique=True)  # identity: one save per item
+    summary: str | None = None
+    meta: str | None = None
+    saved_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
