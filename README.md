@@ -56,6 +56,18 @@ curl -X POST localhost:8000/ingest \
 
 Research uses a free NVIDIA NIM key (build.nvidia.com) set as `NVIDIA_API_KEY` once that stage lands.
 
+## Run it (Docker)
+
+```bash
+cp .env.example .env
+# edit .env: set NVIDIA_API_KEY; set INGEST_TOKEN before exposing this outside localhost
+docker compose up --build
+```
+
+Open <http://localhost:8000>. Docker stores the SQLite database and downloaded media in the
+`gykr-data` volume. The image uses `profile.example.yaml` by default; edit that before building if
+you want a custom focus profile inside the container.
+
 ## Tests
 
 ```bash

@@ -1,0 +1,16 @@
+services:
+  app:
+    build: .
+    ports:
+      - "8000:8000"
+    env_file:
+      - .env
+    environment:
+      DATABASE_URL: sqlite:////app/data/reels.db
+      MEDIA_DIR: /app/data/media
+    volumes:
+      - gykr-data:/app/data
+    restart: unless-stopped
+
+volumes:
+  gykr-data:
