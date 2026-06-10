@@ -95,6 +95,46 @@ def _extract_json(raw: str) -> dict:
     return json.loads(raw[start : end + 1])
 
 
+_ANGLE_BY_SOURCE = {
+    "arxiv": (
+        "This is a RESEARCH PAPER. In `builds`, name the concrete research GAP it leaves open and "
+        "whether a new paper or extension is realistically within this person's reach."
+    ),
+    "github": "This is a tool/repo. In `builds`, name projects this person could ship USING it.",
+    "hn": "A discussion/launch. In `builds`, name what this person could build off the idea.",
+    "news": "News. In `builds`, name any new tool/opening it creates that this person could use.",
+    "reddit": "A discussion. In `builds`, name what this person could build off it.",
+}
+_ANGLE_BY_SOURCE["gnews"] = _ANGLE_BY_SOURCE["news"]
+
+
+def analyze_item(item, profile: dict, client: LLMClient | None = None) -> dict:
+    """Depth + a PERSONAL opportunity read for any radar item (not GitHub — that has its own
+    README-based path). Returns {overview, usage, builds[], product_ideas[]} so it caches into the
+    same RadarItem fields. `overview` is the 60-100 word depth; `usage` is why it matters to THIS
+    person; `builds`/`product_ideas` are what they could build/monetize."""
+    client = client or NvidiaNimClient()
+    angle = _ANGLE_BY_SOURCE.get(getattr(item, "source", ""), _ANGLE_BY_SOURCE["news"])
+    system = (
+        "You analyze a tech item FOR one specific builder and return STRICT JSON only. Keys: "
+        "overview (60-100 words, plain language: what it actually is, in depth); "
+        "usage (1-2 sentences: why it matters to THIS person given their focus and goals); "
+        "builds (array of 2-4 concrete things THIS person could build or do with it); "
+        "product_ideas (array of 1-3 monetizable angles — freelance offer, paid tool, service). "
+        "Be concrete and specific, tied to their focus. Return ONLY the JSON object."
+    )
+    user = (
+        f"Source: {getattr(item, 'source', '')}\n"
+        f"Item: {item.title}\n"
+        f"Description: {item.summary or '(none)'}\n"
+        f"Link: {item.url}\n"
+        f"Person's focus: {profile.get('focus', '')}\n"
+        f"Goals / situation: {profile.get('goals', '')}\n\n"
+        f"{angle}"
+    )
+    return _extract_json(client.complete(system, user))
+
+
 def research_reel(
     transcript: str,
     profile: dict,

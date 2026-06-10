@@ -23,6 +23,7 @@ from app import (
     hn_radar,
     lanes,
     reddit_radar,
+    research,
     rss_radar,
     store,
 )
@@ -326,6 +327,37 @@ def github_detail(request: Request, item_id: int) -> HTMLResponse:
     return templates.TemplateResponse(
         request,
         "github_detail.html",
+        {
+            "item": item,
+            "builds": _load_json_list(item.builds),
+            "product_ideas": _load_json_list(item.product_ideas),
+        },
+    )
+
+
+@app.get("/item/{item_id}", response_class=HTMLResponse)
+def item_detail(request: Request, item_id: int) -> HTMLResponse:
+    """Depth on click: a personalized breakdown of ANY radar item — what it is, why it matters to
+    you, what you could build, how to monetize. Analyzed once (NIM), then cached on the item."""
+    item = store.get_radar_item(item_id)
+    if item is None:
+        raise HTTPException(status_code=404, detail="item not found")
+    if not item.overview:  # analyze once, then cache
+        try:
+            if item.source == "github":
+                data = github_radar.analyze_repo(item, load_profile())
+            else:
+                data = research.analyze_item(item, load_profile())
+            item.overview = data.get("overview", "")
+            item.usage = data.get("usage", "")
+            item.builds = json.dumps(data.get("builds") or [])
+            item.product_ideas = json.dumps(data.get("product_ideas") or [])
+            store.save_radar_item(item)
+        except Exception:  # noqa: BLE001 — analysis is best-effort; still show the item
+            pass
+    return templates.TemplateResponse(
+        request,
+        "item_detail.html",
         {
             "item": item,
             "builds": _load_json_list(item.builds),

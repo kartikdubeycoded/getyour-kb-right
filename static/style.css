@@ -153,6 +153,8 @@ div.card-img span {
 .error { color: #e58; font-size: 0.78rem; }
 .more { margin-top: auto; padding-top: 0.6rem; color: var(--dim); font-size: 0.72rem; }
 code { background: #222; padding: 1px 6px; border-radius: 6px; }
+.ititle { font-size: 1.15rem; font-weight: 700; color: var(--txt); letter-spacing: 0; margin: 6px 0 18px; }
+.overview { font-size: 0.95rem; line-height: 1.7; }
 
 .detail-thumb {
   width: 100%; max-width: 320px; margin: 14px 0 4px; border-radius: 14px;

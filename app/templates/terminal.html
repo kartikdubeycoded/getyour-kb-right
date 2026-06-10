@@ -42,7 +42,7 @@
       <div class="panel-body">
         {% if not stream %}<p class="empty">Corpus empty — hit ↻ SYNC to pull every source.</p>{% endif %}
         {% for item in stream %}
-        <a class="row" {% if item.source == 'github' %}href="/github/{{ item.id }}"{% else %}href="{{ item.url }}" target="_blank" rel="noopener"{% endif %}>
+        <a class="row" href="/item/{{ item.id }}">
           <span class="time">{{ item.created_at.strftime('%H:%M') }}</span>
           <span class="src {{ item.source }}">{{ item.source }}</span>
           <span class="t">{{ item.title }}</span>

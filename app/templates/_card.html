@@ -5,10 +5,10 @@
    above it (z-index) so a <button> never nests inside the <a>. #}
 {% macro radar_card(item, more=None, saved=False) %}
 <div class="card">
-  {% if item.source == 'github' and not saved %}
-  <a class="card-link" href="/github/{{ item.id }}" aria-label="{{ item.title }}"></a>
-  {% else %}
+  {% if saved %}
   <a class="card-link" href="{{ item.url }}" target="_blank" rel="noopener" aria-label="{{ item.title }}"></a>
+  {% else %}
+  <a class="card-link" href="/item/{{ item.id }}" aria-label="{{ item.title }}"></a>
   {% endif %}
   {% set img = card_image(item) %}
   {% if img %}
