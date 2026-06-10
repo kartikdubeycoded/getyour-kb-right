@@ -277,10 +277,23 @@ def refresh_source(source: str, fetch, eng=None) -> bool:
     return True
 
 
+PREWARM_COUNT = 6  # how many newest items to analyze in the background after a SYNC
+
+
+def _prewarm_top(n: int = PREWARM_COUNT) -> None:
+    """Analyze the newest n radar items that aren't analyzed yet, so the likely clicks open
+    instantly. Best-effort and sequential (gentle on the NIM free tier); _analyze_and_cache
+    swallows per-item failures."""
+    for item in store.list_all_radar(limit=n):
+        if not item.overview:
+            _analyze_and_cache(item)
+
+
 @app.post("/refresh-all")
-def refresh_all() -> RedirectResponse:
+def refresh_all(background_tasks: BackgroundTasks) -> RedirectResponse:
     """Pull every source at once into the corpus, then show the curated lanes. Each source is
-    isolated (refresh_source) so one failing or empty fetch never wipes or sinks the others."""
+    isolated (refresh_source) so one failing or empty fetch never wipes or sinks the others.
+    After the fetches, pre-warm the newest items' analysis in the background."""
     profile = load_profile()
     # Broad sources (gnews/arxiv) search EVERY lane's topics, so thin lanes (Web Design, Jobs) fill;
     # github/hn stay on the focus line — they're per-topic search with tight rate limits.
@@ -292,6 +305,7 @@ def refresh_all() -> RedirectResponse:
     refresh_source("gnews", lambda: gnews_radar.fetch_news(profile, topics=lane_topics))
     if reddit_radar.has_credentials():
         refresh_source("reddit", lambda: reddit_radar.fetch_posts(profile))
+    background_tasks.add_task(_prewarm_top)  # warm the newest items after responding
     return RedirectResponse(url="/lanes", status_code=303)
 
 
