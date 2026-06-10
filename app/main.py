@@ -308,6 +308,24 @@ def news_refresh() -> RedirectResponse:
     return RedirectResponse(url="/news", status_code=303)
 
 
+def _save_breakdown(item, data: dict) -> None:
+    """Cache an analysis result's fields onto a radar item (builds/product_ideas as JSON)."""
+    item.overview = data.get("overview", "")
+    item.usage = data.get("usage", "")
+    item.builds = json.dumps(data.get("builds") or [])
+    item.product_ideas = json.dumps(data.get("product_ideas") or [])
+    store.save_radar_item(item)
+
+
+def _breakdown_ctx(item) -> dict:
+    """Template context for rendering a radar item's cached breakdown."""
+    return {
+        "item": item,
+        "builds": _load_json_list(item.builds),
+        "product_ideas": _load_json_list(item.product_ideas),
+    }
+
+
 @app.get("/github/{item_id}", response_class=HTMLResponse)
 def github_detail(request: Request, item_id: int) -> HTMLResponse:
     """A repo's breakdown: overview, usage, builds, product ideas. Analyzed once, then cached."""
@@ -316,23 +334,10 @@ def github_detail(request: Request, item_id: int) -> HTMLResponse:
         raise HTTPException(status_code=404, detail="repo not found")
     if not item.overview:  # not analyzed yet → do it once, then cache
         try:
-            data = github_radar.analyze_repo(item, load_profile())
-            item.overview = data.get("overview", "")
-            item.usage = data.get("usage", "")
-            item.builds = json.dumps(data.get("builds") or [])
-            item.product_ideas = json.dumps(data.get("product_ideas") or [])
-            store.save_radar_item(item)
+            _save_breakdown(item, github_radar.analyze_repo(item, load_profile()))
         except Exception:  # noqa: BLE001 — analysis is best-effort; still show the repo
             pass
-    return templates.TemplateResponse(
-        request,
-        "github_detail.html",
-        {
-            "item": item,
-            "builds": _load_json_list(item.builds),
-            "product_ideas": _load_json_list(item.product_ideas),
-        },
-    )
+    return templates.TemplateResponse(request, "github_detail.html", _breakdown_ctx(item))
 
 
 def _analyze_and_cache(item) -> None:
@@ -351,11 +356,7 @@ def _analyze_and_cache(item) -> None:
         data = research.refine_analysis(item, profile, draft)
     except Exception:  # noqa: BLE001 — the critic pass is a bonus; keep the draft
         data = draft
-    item.overview = data.get("overview", "")
-    item.usage = data.get("usage", "")
-    item.builds = json.dumps(data.get("builds") or [])
-    item.product_ideas = json.dumps(data.get("product_ideas") or [])
-    store.save_radar_item(item)
+    _save_breakdown(item, data)
 
 
 @app.get("/item/{item_id}", response_class=HTMLResponse)
@@ -366,14 +367,7 @@ def item_detail(request: Request, item_id: int) -> HTMLResponse:
     if item is None:
         raise HTTPException(status_code=404, detail="item not found")
     return templates.TemplateResponse(
-        request,
-        "item_detail.html",
-        {
-            "item": item,
-            "analyzed": bool(item.overview),
-            "builds": _load_json_list(item.builds),
-            "product_ideas": _load_json_list(item.product_ideas),
-        },
+        request, "item_detail.html", {**_breakdown_ctx(item), "analyzed": bool(item.overview)}
     )
 
 
@@ -386,15 +380,7 @@ def item_analysis(request: Request, item_id: int) -> HTMLResponse:
         raise HTTPException(status_code=404, detail="item not found")
     if not item.overview:
         _analyze_and_cache(item)
-    return templates.TemplateResponse(
-        request,
-        "_analysis.html",
-        {
-            "item": item,
-            "builds": _load_json_list(item.builds),
-            "product_ideas": _load_json_list(item.product_ideas),
-        },
-    )
+    return templates.TemplateResponse(request, "_analysis.html", _breakdown_ctx(item))
 
 
 @app.get("/reel/{reel_id}", response_class=HTMLResponse)
