@@ -10,6 +10,8 @@ from typing import Protocol
 
 NIM_BASE_URL = os.getenv("NIM_BASE_URL", "https://integrate.api.nvidia.com/v1")
 NIM_MODEL = os.getenv("NIM_MODEL", "meta/llama-3.3-70b-instruct")
+# A small, fast model for the cheap first pass (the draft); the critic uses the strong NIM_MODEL.
+NIM_DRAFT_MODEL = os.getenv("NIM_DRAFT_MODEL", "meta/llama-3.1-8b-instruct")
 
 
 class LLMClient(Protocol):
@@ -19,14 +21,14 @@ class LLMClient(Protocol):
 class NvidiaNimClient:
     """OpenAI-compatible client for NVIDIA NIM. Needs a free NVIDIA_API_KEY (build.nvidia.com)."""
 
-    def __init__(self) -> None:
+    def __init__(self, model: str | None = None) -> None:
         from openai import OpenAI
 
         key = os.getenv("NVIDIA_API_KEY")
         if not key:
             raise RuntimeError("NVIDIA_API_KEY not set (get a free key at build.nvidia.com)")
         self._client = OpenAI(base_url=NIM_BASE_URL, api_key=key)
-        self._model = NIM_MODEL
+        self._model = model or NIM_MODEL
 
     def complete(self, system: str, user: str) -> str:
         resp = self._client.chat.completions.create(
@@ -113,7 +115,7 @@ def analyze_item(item, profile: dict, client: LLMClient | None = None) -> dict:
     README-based path). Returns {overview, usage, builds[], product_ideas[]} so it caches into the
     same RadarItem fields. `overview` is the 60-100 word depth; `usage` is why it matters to THIS
     person; `builds`/`product_ideas` are what they could build/monetize."""
-    client = client or NvidiaNimClient()
+    client = client or NvidiaNimClient(model=NIM_DRAFT_MODEL)  # cheap fast draft
     angle = _ANGLE_BY_SOURCE.get(getattr(item, "source", ""), _ANGLE_BY_SOURCE["news"])
     system = (
         "You analyze a tech item FOR one specific builder and return STRICT JSON only. Keys: "

@@ -32,3 +32,25 @@ def test_arxiv_framing_asks_for_the_research_gap():
     research.analyze_item(item, {"focus": "ML"}, client=c)
     _system, user = c.calls[0]
     assert "GAP" in user  # arXiv items get the research-gap framing
+
+
+class _ModelSpy:
+    """Records which model the client was constructed with; returns valid JSON."""
+
+    def __init__(self, model=None):
+        _ModelSpy.last_model = model
+
+    def complete(self, system, user):
+        return '{"overview":"o","usage":"u","builds":[],"product_ideas":[]}'
+
+
+def test_draft_uses_the_fast_model(monkeypatch):
+    monkeypatch.setattr(research, "NvidiaNimClient", _ModelSpy)
+    research.analyze_item(RadarItem(source="news", title="t", url="u"), {})
+    assert _ModelSpy.last_model == research.NIM_DRAFT_MODEL  # pass 1 = fast model
+
+
+def test_critic_uses_the_main_model(monkeypatch):
+    monkeypatch.setattr(research, "NvidiaNimClient", _ModelSpy)
+    research.refine_analysis(RadarItem(source="news", title="t", url="u"), {}, {"overview": "d"})
+    assert _ModelSpy.last_model is None  # pass 2 = default (strong) model
