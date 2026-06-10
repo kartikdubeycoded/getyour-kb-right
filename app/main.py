@@ -335,29 +335,60 @@ def github_detail(request: Request, item_id: int) -> HTMLResponse:
     )
 
 
+def _analyze_and_cache(item) -> None:
+    """Two-pass analysis cached on the item: analyst draft -> critic refine (a second agent judging
+    the first, for real depth). Best-effort — a draft survives if the refine fails, and a total
+    failure just leaves overview empty (the page shows a fallback)."""
+    profile = load_profile()
+    try:
+        if item.source == "github":
+            draft = github_radar.analyze_repo(item, profile)
+        else:
+            draft = research.analyze_item(item, profile)
+    except Exception:  # noqa: BLE001 — analysis is best-effort
+        return
+    try:
+        data = research.refine_analysis(item, profile, draft)
+    except Exception:  # noqa: BLE001 — the critic pass is a bonus; keep the draft
+        data = draft
+    item.overview = data.get("overview", "")
+    item.usage = data.get("usage", "")
+    item.builds = json.dumps(data.get("builds") or [])
+    item.product_ideas = json.dumps(data.get("product_ideas") or [])
+    store.save_radar_item(item)
+
+
 @app.get("/item/{item_id}", response_class=HTMLResponse)
 def item_detail(request: Request, item_id: int) -> HTMLResponse:
-    """Depth on click: a personalized breakdown of ANY radar item — what it is, why it matters to
-    you, what you could build, how to monetize. Analyzed once (NIM), then cached on the item."""
+    """Opens INSTANTLY. If the depth isn't cached yet, the page shows a spinner and fetches
+    /item/{id}/analysis in the background — so the click never hangs the tab on the NIM call."""
     item = store.get_radar_item(item_id)
     if item is None:
         raise HTTPException(status_code=404, detail="item not found")
-    if not item.overview:  # analyze once, then cache
-        try:
-            if item.source == "github":
-                data = github_radar.analyze_repo(item, load_profile())
-            else:
-                data = research.analyze_item(item, load_profile())
-            item.overview = data.get("overview", "")
-            item.usage = data.get("usage", "")
-            item.builds = json.dumps(data.get("builds") or [])
-            item.product_ideas = json.dumps(data.get("product_ideas") or [])
-            store.save_radar_item(item)
-        except Exception:  # noqa: BLE001 — analysis is best-effort; still show the item
-            pass
     return templates.TemplateResponse(
         request,
         "item_detail.html",
+        {
+            "item": item,
+            "analyzed": bool(item.overview),
+            "builds": _load_json_list(item.builds),
+            "product_ideas": _load_json_list(item.product_ideas),
+        },
+    )
+
+
+@app.get("/item/{item_id}/analysis", response_class=HTMLResponse)
+def item_analysis(request: Request, item_id: int) -> HTMLResponse:
+    """The depth read as an HTML fragment — generated two-pass on first request, then cached.
+    The detail page fetches this so the click is instant."""
+    item = store.get_radar_item(item_id)
+    if item is None:
+        raise HTTPException(status_code=404, detail="item not found")
+    if not item.overview:
+        _analyze_and_cache(item)
+    return templates.TemplateResponse(
+        request,
+        "_analysis.html",
         {
             "item": item,
             "builds": _load_json_list(item.builds),

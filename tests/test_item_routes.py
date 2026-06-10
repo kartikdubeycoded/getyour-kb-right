@@ -1,4 +1,5 @@
-"""The /item/{id} depth page: analyzes once (NIM mocked), caches, renders the personal read."""
+"""The /item depth flow: the page opens INSTANTLY (no NIM on the click); the /analysis fragment
+does the two-pass work (analyst draft -> critic refine), caches it, and is fetched async."""
 
 from fastapi.testclient import TestClient
 from sqlalchemy.pool import StaticPool
@@ -17,31 +18,63 @@ def _client(monkeypatch):
     return TestClient(app)
 
 
-def test_item_detail_analyzes_once_and_caches(monkeypatch):
+def _seed_news(title="Tool X"):
+    news = RadarItem(source="news", title=title, url="https://x", meta="m")
+    store.replace_radar("news", [news])
+    return store.list_radar("news")[0]
+
+
+def test_item_page_opens_instantly_without_calling_nim(monkeypatch):
     calls = {"n": 0}
-
-    def fake(item, profile, client=None):
-        calls["n"] += 1
-        return {
-            "overview": "a deep read", "usage": "matters to you",
-            "builds": ["build a thing"], "product_ideas": ["sell it"],
-        }
-
-    monkeypatch.setattr(research, "analyze_item", fake)
+    monkeypatch.setattr(research, "analyze_item", lambda *a, **k: calls.__setitem__("n", 1))
     with _client(monkeypatch) as client:
-        news = RadarItem(source="news", title="Tool X", url="https://x", meta="m")
-        store.replace_radar("news", [news])
-        item = store.list_radar("news")[0]
-
+        item = _seed_news()
         page = client.get(f"/item/{item.id}")
         assert page.status_code == 200
-        assert "a deep read" in page.text  # depth shown, not a redirect to the source
-        assert "build a thing" in page.text and "sell it" in page.text  # the personal opportunity
+        assert "analyzing" in page.text  # spinner shown — page didn't wait
+        assert calls["n"] == 0  # the page route never calls NIM
 
-        client.get(f"/item/{item.id}")  # second view
-        assert calls["n"] == 1  # cached — analyzed only once
+
+def test_analysis_fragment_is_two_pass_and_caches(monkeypatch):
+    calls = {"draft": 0, "refine": 0}
+
+    def draft(item, profile, client=None):
+        calls["draft"] += 1
+        return {"overview": "shallow", "usage": "u", "builds": ["b"], "product_ideas": ["p"]}
+
+    def refine(item, profile, d, client=None):
+        calls["refine"] += 1
+        return {"overview": "DEEP read", "usage": "u2", "builds": ["B1"], "product_ideas": ["P1"]}
+
+    monkeypatch.setattr(research, "analyze_item", draft)
+    monkeypatch.setattr(research, "refine_analysis", refine)
+    with _client(monkeypatch) as client:
+        item = _seed_news()
+        frag = client.get(f"/item/{item.id}/analysis")
+        assert frag.status_code == 200
+        assert "DEEP read" in frag.text and "B1" in frag.text  # the critic's deeper version wins
+        assert (calls["draft"], calls["refine"]) == (1, 1)  # both passes ran
+
+        client.get(f"/item/{item.id}/analysis")  # second fetch
+        assert (calls["draft"], calls["refine"]) == (1, 1)  # cached — no re-analysis
+
+
+def test_refine_falls_back_to_draft_on_critic_failure(monkeypatch):
+    def draft(item, profile, client=None):
+        return {"overview": "draft only", "usage": "", "builds": [], "product_ideas": []}
+
+    def boom(*a, **k):
+        raise RuntimeError("critic down")
+
+    monkeypatch.setattr(research, "analyze_item", draft)
+    monkeypatch.setattr(research, "refine_analysis", boom)
+    with _client(monkeypatch) as client:
+        item = _seed_news()
+        frag = client.get(f"/item/{item.id}/analysis")
+        assert "draft only" in frag.text  # critic failed -> the draft still shows
 
 
 def test_item_detail_404_for_missing(monkeypatch):
     with _client(monkeypatch) as client:
         assert client.get("/item/99999").status_code == 404
+        assert client.get("/item/99999/analysis").status_code == 404

@@ -135,6 +135,28 @@ def analyze_item(item, profile: dict, client: LLMClient | None = None) -> dict:
     return _extract_json(client.complete(system, user))
 
 
+def refine_analysis(item, profile: dict, draft: dict, client: LLMClient | None = None) -> dict:
+    """Second pass: a critic reviews the analyst's draft and rewrites it DEEPER. Same keys back
+    (overview/usage/builds/product_ideas). This is the 'second agent judging the first' — the draft
+    tends to be generic; the critic forces specifics, mechanisms, and a concrete first step."""
+    client = client or NvidiaNimClient()
+    system = (
+        "You are a senior reviewer improving a shallow draft analysis. Rewrite it to be DEEPER and "
+        "specific to this person. Rules: overview must teach the actual substance (name the "
+        "mechanism/approach/specifics, not vague claims), 90-130 words; usage states the concrete "
+        "reason it matters to THEM; each item in builds is a specific project WITH a first step; "
+        "product_ideas are realistic for a solo builder with a path to first rupee. Keep the same "
+        "JSON keys (overview, usage, builds, product_ideas). Return ONLY the JSON object."
+    )
+    user = (
+        f"Item: {item.title}\nSource: {getattr(item, 'source', '')}\n"
+        f"Description: {item.summary or '(none)'}\n"
+        f"Person's focus: {profile.get('focus', '')}\nGoals: {profile.get('goals', '')}\n\n"
+        f"DRAFT to improve:\n{json.dumps(draft)}"
+    )
+    return _extract_json(client.complete(system, user))
+
+
 def research_reel(
     transcript: str,
     profile: dict,

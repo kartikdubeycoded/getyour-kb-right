@@ -1,0 +1,18 @@
+{# The depth read for one item. Rendered server-side when cached, or fetched async into the page. #}
+{% if item.overview %}
+  <section><h2>what it is</h2><p class="overview">{{ item.overview }}</p></section>
+  {% if item.usage %}<section><h2>why it matters to you</h2><p class="take">{{ item.usage }}</p></section>{% endif %}
+  {% if builds %}
+  <section><h2>what you could build</h2>
+    <ul class="takeaways">{% for b in builds %}<li>{{ b }}</li>{% endfor %}</ul>
+  </section>
+  {% endif %}
+  {% if product_ideas %}
+  <section class="buildable"><h2>monetize</h2>
+    <ul class="links">{% for p in product_ideas %}<li>{{ p }}</li>{% endfor %}</ul>
+  </section>
+  {% endif %}
+{% else %}
+  <section><p class="empty">Couldn't analyze this one (NIM key or rate limit).
+    <a class="more" href="{{ item.url }}" target="_blank" rel="noopener">open the source &#8599;</a></p></section>
+{% endif %}
