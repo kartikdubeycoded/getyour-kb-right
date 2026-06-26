@@ -5,7 +5,7 @@ from fastapi.testclient import TestClient
 from sqlalchemy.pool import StaticPool
 from sqlmodel import create_engine
 
-from app import research, store
+from app import github_radar, research, store
 from app.main import app
 from app.models import RadarItem
 
@@ -72,6 +72,29 @@ def test_refine_falls_back_to_draft_on_critic_failure(monkeypatch):
         item = _seed_news()
         frag = client.get(f"/item/{item.id}/analysis")
         assert "draft only" in frag.text  # critic failed -> the draft still shows
+
+
+def test_github_item_uses_the_repo_analyzer_not_the_generic_one(monkeypatch):
+    calls = {"repo": 0, "generic": 0}
+
+    def repo(item, profile):
+        calls["repo"] += 1
+        return {"overview": "repo read", "usage": "u", "builds": ["b"], "product_ideas": ["p"]}
+
+    monkeypatch.setattr(github_radar, "analyze_repo", repo)
+    monkeypatch.setattr(
+        research, "analyze_item", lambda *a, **k: calls.__setitem__("generic", 1)
+    )
+    monkeypatch.setattr(
+        research, "refine_analysis", lambda item, profile, draft, client=None: draft
+    )
+    with _client(monkeypatch) as client:
+        gh = RadarItem(source="github", title="repo X", url="u", meta="m")
+        store.replace_radar("github", [gh])
+        item = store.list_radar("github")[0]
+        frag = client.get(f"/item/{item.id}/analysis")
+        assert "repo read" in frag.text  # README-based path rendered
+        assert calls == {"repo": 1, "generic": 0}  # github branch, not the generic analyzer
 
 
 def test_item_detail_404_for_missing(monkeypatch):

@@ -13,7 +13,8 @@
 {% block body %}
   <main class="detail">
     <h1 class="ititle">{{ item.title }}</h1>
-    <div id="analysis">
+    {# id/url live in data-* (safe HTML-attr context) so the untrusted url never enters inline JS. #}
+    <div id="analysis" data-item-id="{{ item.id }}" data-source-url="{{ item.url }}">
       {% if analyzed %}
         {% include "_analysis.html" %}
       {% else %}
@@ -23,13 +24,22 @@
   </main>
   {% if not analyzed %}
   <script>
-    fetch("/item/{{ item.id }}/analysis")
-      .then(r => r.text())
-      .then(html => { document.getElementById("analysis").innerHTML = html; })
-      .catch(() => {
-        document.getElementById("analysis").innerHTML =
-          "<p class='empty'>Analysis failed. <a class='more' href='{{ item.url }}' target='_blank' rel='noopener'>open the source &#8599;</a></p>";
-      });
+    (function () {
+      var box = document.getElementById("analysis");
+      fetch("/item/" + encodeURIComponent(box.dataset.itemId) + "/analysis")
+        .then(function (r) { return r.text(); })
+        .then(function (html) { box.innerHTML = html; })  // server-rendered, trusted fragment
+        .catch(function () {
+          box.textContent = "Analysis failed. ";
+          var a = document.createElement("a");
+          a.className = "more";
+          a.href = box.dataset.sourceUrl;  // DOM property, not parsed as HTML
+          a.target = "_blank";
+          a.rel = "noopener";
+          a.textContent = "open the source ↗";
+          box.appendChild(a);
+        });
+    })();
   </script>
   {% endif %}
 {% endblock %}
