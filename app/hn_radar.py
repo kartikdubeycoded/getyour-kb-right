@@ -29,11 +29,15 @@ def _search(topic: str, hits: int) -> list[dict]:
         raise RadarError(f"HN search failed for '{topic}': {exc}") from exc
 
 
-def fetch_stories(profile: dict, per_topic: int = 5) -> list[RadarItem]:
-    """Top HN stories across the profile's topics, de-duplicated, as RadarItems (source='hn')."""
+def fetch_stories(
+    profile: dict, per_topic: int = 5, topics: list[str] | None = None
+) -> list[RadarItem]:
+    """Top HN stories across the given topics (defaults to the profile's focus topics),
+    de-duplicated, as RadarItems (source='hn'). Pass lane topics so the thin lanes (Web Design,
+    Jobs) fill with discussions too — not just the focus line."""
     items: list[RadarItem] = []
     seen: set[str] = set()
-    for topic in topics_from_profile(profile):
+    for topic in topics or topics_from_profile(profile):
         try:
             hits = _search(topic, per_topic)
         except RadarError:

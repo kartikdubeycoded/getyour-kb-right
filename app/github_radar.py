@@ -87,13 +87,22 @@ def analyze_repo(item: RadarItem, profile: dict, client=None, token: str | None 
     return _extract_json(client.complete(system, user))
 
 
-def fetch_repos(profile: dict, per_topic: int = 4, token: str | None = None) -> list[RadarItem]:
-    """Top repos across the profile's topics, de-duplicated, as RadarItems (source='github')."""
+def fetch_repos(
+    profile: dict, per_topic: int = 4, token: str | None = None, topics: list[str] | None = None
+) -> list[RadarItem]:
+    """Top repos across the given topics (defaults to the profile's focus topics), de-duplicated,
+    as RadarItems (source='github'). Pass lane topics so the thin lanes (Web Design, Jobs) fill with
+    repos too — not just the focus line. Per-topic resilient: a rate-limited topic (GitHub Search
+    allows ~10 unauthenticated req/min) is skipped, so it never sinks the whole batch."""
     token = token or os.getenv("GITHUB_TOKEN")
     items: list[RadarItem] = []
     seen: set[str] = set()
-    for topic in topics_from_profile(profile):
-        for repo in _search(topic, per_topic, token):
+    for topic in topics or topics_from_profile(profile):
+        try:
+            repos = _search(topic, per_topic, token)
+        except RadarError:
+            continue  # one failed/rate-limited topic shouldn't sink the whole refresh
+        for repo in repos:
             url = repo.get("html_url")
             if not url or url in seen:
                 continue

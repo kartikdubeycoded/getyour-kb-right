@@ -30,6 +30,20 @@ def test_fetch_stories_falls_back_to_hn_thread_when_no_url(monkeypatch):
     assert items[0].url == "https://news.ycombinator.com/item?id=777"  # no story url -> HN thread
 
 
+def test_fetch_stories_searches_the_given_topics_not_just_focus(monkeypatch):
+    searched: list[str] = []
+
+    def fake_search(topic, hits):
+        searched.append(topic)
+        return [{"objectID": topic, "title": topic, "url": f"https://e.co/{topic}", "points": 1}]
+
+    monkeypatch.setattr(hn_radar, "_search", fake_search)
+    items = hn_radar.fetch_stories({"focus": "AI, ML"}, topics=["web design", "jobs"])
+
+    assert searched == ["web design", "jobs"]  # lane topics drive the search
+    assert {i.title for i in items} == {"web design", "jobs"}
+
+
 def test_fetch_stories_skips_failing_topic(monkeypatch):
     def maybe_boom(topic, hits):
         if topic == "bad":
