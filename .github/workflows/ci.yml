@@ -24,3 +24,10 @@ jobs:
         run: ruff check .
       - name: Test
         run: pytest -q
+      - name: Audit dependencies for known CVEs
+        # Non-blocking on purpose: a CVE with no patched release yet shouldn't turn CI red and
+        # train us to ignore it. It informs (check the logs); lint+tests stay the merge signal.
+        continue-on-error: true
+        run: |
+          pip install pip-audit
+          pip-audit

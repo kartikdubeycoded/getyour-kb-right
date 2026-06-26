@@ -1,12 +1,13 @@
 # v1 deps grow per task (incremental). Task 1: web skeleton + tests + lint.
-fastapi
+fastapi>=0.138.1
+starlette>=1.3.1   # security floor: 1.2.x had CVE-2026-54282/54283 (fastapi pulls it transitively)
 uvicorn[standard]
 httpx          # FastAPI TestClient dependency
 pytest
 ruff
 sqlmodel       # Task 2: Reel model + store (pulls SQLAlchemy + pydantic)
 jinja2         # Task 3: dashboard templates
-yt-dlp         # Task 4: download a public reel's audio
+yt-dlp>=2026.6.9   # Task 4: download a public reel's audio (>= patches CVE-2026-50019/50023/50574)
 faster-whisper # Task 5: local transcription (no API key)
 openai         # Task 6: NVIDIA NIM via the OpenAI-compatible API
 pyyaml         # Task 6: load the focus profile
