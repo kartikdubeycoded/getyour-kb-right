@@ -62,6 +62,28 @@ def test_fetch_repos_skips_a_rate_limited_topic(monkeypatch):
     assert [i.title for i in items] == ["o/good"]  # the failed topic drops; the batch survives
 
 
+def test_fetch_repos_caps_topics_to_the_unauth_rate_limit(monkeypatch):
+    # GitHub Search allows ~10 req/min unauthenticated; one request per topic. fetch_repos must cap
+    # so a SYNC completes instead of 429-ing the tail topics (dropping them shrinks the corpus).
+    monkeypatch.delenv("GITHUB_TOKEN", raising=False)  # force the unauthenticated path
+    searched: list[str] = []
+    monkeypatch.setattr(
+        github_radar, "_search", lambda topic, per_topic, token: searched.append(topic) or []
+    )
+    github_radar.fetch_repos({}, topics=[f"t{i}" for i in range(12)])
+    assert searched == [f"t{i}" for i in range(10)]  # only the first 10 searched, not all 12
+
+
+def test_fetch_repos_allows_more_topics_with_a_token(monkeypatch):
+    searched: list[str] = []
+    monkeypatch.setattr(
+        github_radar, "_search", lambda topic, per_topic, token: searched.append(topic) or []
+    )
+    topics = [f"t{i}" for i in range(12)]
+    github_radar.fetch_repos({}, token="ghp_x", topics=topics)
+    assert searched == topics  # a token raises the limit (~30/min) — all 12 go through
+
+
 def test_analyze_repo_parses_breakdown(monkeypatch):
     from app.models import RadarItem
 

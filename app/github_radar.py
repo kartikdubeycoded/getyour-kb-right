@@ -92,12 +92,17 @@ def fetch_repos(
 ) -> list[RadarItem]:
     """Top repos across the given topics (defaults to the profile's focus topics), de-duplicated,
     as RadarItems (source='github'). Pass lane topics so the thin lanes (Web Design, Jobs) fill with
-    repos too — not just the focus line. Per-topic resilient: a rate-limited topic (GitHub Search
-    allows ~10 unauthenticated req/min) is skipped, so it never sinks the whole batch."""
+    repos too — not just the focus line.
+
+    Rate-limit safety (one Search request per topic): GitHub allows ~10 req/min unauthenticated,
+    ~30 with a token, so we cap the topic count to that. This keeps a SYNC WITHIN the limit instead
+    of 429-ing the tail topics — a partial batch would then replace_radar over the corpus and shrink
+    it. Per-topic resilience below is the net for a genuine transient failure."""
     token = token or os.getenv("GITHUB_TOKEN")
+    chosen = (topics or topics_from_profile(profile))[: 30 if token else 10]
     items: list[RadarItem] = []
     seen: set[str] = set()
-    for topic in topics or topics_from_profile(profile):
+    for topic in chosen:
         try:
             repos = _search(topic, per_topic, token)
         except RadarError:

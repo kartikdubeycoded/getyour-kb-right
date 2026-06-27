@@ -296,9 +296,9 @@ def refresh_all(background_tasks: BackgroundTasks) -> RedirectResponse:
     After the fetches, pre-warm the newest items' analysis in the background."""
     profile = load_profile()
     # Every per-topic source (github/hn/gnews/arxiv) searches EVERY lane's topics, so the thin
-    # lanes (Web Design, Jobs) fill from all of them, not just the focus line. search_topics caps
-    # the list (default 12) near GitHub's ~10/min unauth limit, and github is per-topic resilient
-    # so a rate-limited topic just drops. news (rss) has fixed feeds — it ranks, can't search.
+    # lanes (Web Design, Jobs) fill from all of them, not just the focus line. fetch_repos self-caps
+    # the topics it searches to GitHub's rate limit (~10 unauth / ~30 with a token) so a SYNC never
+    # 429s its tail and shrinks the github corpus. news (rss) has fixed feeds — it ranks, no search.
     lane_topics = lanes.search_topics(profile)
     refresh_source("github", lambda: github_radar.fetch_repos(profile, topics=lane_topics))
     refresh_source("hn", lambda: hn_radar.fetch_stories(profile, topics=lane_topics))
