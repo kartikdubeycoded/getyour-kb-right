@@ -9,6 +9,13 @@
 {% endblock %}
 
 {% block body %}
+  {% if signal %}
+  <p class="signal">&#128293; heating up in {{ name }}:
+    {% for s in signal %}
+    <span class="sig" title="{{ s.mentions }} item(s) across {{ s.sources }} source(s)">{{ s.topic }}<small>{{ s.sources }}&times;src</small></span>{% if not loop.last %} &middot; {% endif %}
+    {% endfor %}
+  </p>
+  {% endif %}
   <main class="feed feed--hero">
     {% if not items %}
       <p class="empty">Nothing matched this lane yet &mdash; refresh the source tabs to fill the corpus.</p>

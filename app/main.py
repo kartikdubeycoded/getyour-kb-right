@@ -247,15 +247,18 @@ def saved_view(request: Request) -> HTMLResponse:
 
 @app.get("/lane/{idx}", response_class=HTMLResponse)
 def lane_detail(request: Request, idx: int) -> HTMLResponse:
-    """One aspect, expanded: every matching item across sources, best match first."""
+    """One aspect, expanded: what's heating up in it (signal) + every matching item across sources.
+    The signal reads the same corpus we curate — no new fetch."""
     profile = load_profile()
     defs = lanes.lanes_from_profile(profile)
     if idx < 0 or idx >= len(defs):
         raise HTTPException(status_code=404, detail="lane not found")
     name, topics = defs[idx]
-    items = lanes.curate(store.list_all_radar(), topics, limit=50, avoid=lanes.avoid_terms(profile))
+    corpus = store.list_all_radar()
+    items = lanes.curate(corpus, topics, limit=50, avoid=lanes.avoid_terms(profile))
+    signal = lanes.lane_signal(corpus, topics, top=10)  # focused view shows more than the overview
     return templates.TemplateResponse(
-        request, "lane.html", {"name": name, "idx": idx, "items": items}
+        request, "lane.html", {"name": name, "idx": idx, "items": items, "signal": signal}
     )
 
 
