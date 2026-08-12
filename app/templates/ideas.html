@@ -1,0 +1,61 @@
+{% extends "base.html" %}
+{% block title %}Ideas &middot; get your knowledge right{% endblock %}
+
+{% macro idea_card(c, triage) %}
+<article class="idea idea--{{ c.idea.kind }}">
+  <div class="idea-top">
+    <span class="idea-kind idea-kind--{{ c.idea.kind }}">{{ 'Paper' if c.idea.kind == 'paper' else 'Build' }}</span>
+    <a class="idea-title" href="/idea/{{ c.idea.id }}">{{ c.idea.title }}{% if c.idea.depth %} <span class="idea-deep-flag">deep&nbsp;dive&nbsp;ready</span>{% endif %}</a>
+  </div>
+  {% if c.idea.insight %}<p class="idea-insight">{{ c.idea.insight }}</p>{% endif %}
+  {% if c.idea.plan %}
+  <p class="idea-plan"><b>{{ 'Hypothesis to test' if c.idea.kind == 'paper' else 'What to build' }}:</b> {{ c.idea.plan }}</p>
+  {% endif %}
+  {% if c.idea.why_you %}<p class="idea-why">{{ c.idea.why_you }}</p>{% endif %}
+  {% if c.sources %}
+  <div class="idea-sources">
+    <span class="idea-sources-lab">from</span>
+    {% for s in c.sources %}
+    <a class="src-chip src-chip--{{ s.source }}" href="{{ s.url|safe_url }}" target="_blank" rel="noopener">{{ s.source }} &middot; {{ s.title[:46] }}</a>
+    {% endfor %}
+  </div>
+  {% endif %}
+  {% if triage %}
+  <div class="idea-actions">
+    <form method="post" action="/ideas/{{ c.idea.id }}/accept"><button class="btn-accept" type="submit">&#10003; Accept</button></form>
+    <form method="post" action="/ideas/{{ c.idea.id }}/reject"><button class="btn-reject" type="submit">&times; Reject</button></form>
+  </div>
+  {% endif %}
+</article>
+{% endmacro %}
+
+{% block body %}
+<main class="ideaspace">
+  <form class="generate-bar" method="post" action="/ideas/generate">
+    <div>
+      <h2 class="idea-h">Things you could build or write</h2>
+      <p class="idea-sub">Synthesized across your news, repos and papers — the gaps worth filling. Accept what's real, reject the rest.</p>
+    </div>
+    <button class="refresh" type="submit">&#10022; Synthesize</button>
+  </form>
+
+  {% if generating %}
+  <p class="analyzing" id="working"><span class="spin"></span> Synthesizing across your resources — finding the gaps worth filling. ~a minute on the free tier. This page refreshes itself…</p>
+  <script>setTimeout(function () { window.location.href = '/ideas'; }, 45000);</script>
+  {% endif %}
+
+  {% if not new_ideas and not accepted and not generating %}
+  <p class="empty">No ideas yet. Hit &ldquo;Synthesize&rdquo; to cross-reference your latest resources into things worth making. (Pull latest on the home desk first if it&rsquo;s empty.)</p>
+  {% endif %}
+
+  {% if new_ideas %}
+  <h3 class="idea-section">To decide &middot; {{ new_ideas|length }}</h3>
+  {% for c in new_ideas %}{{ idea_card(c, true) }}{% endfor %}
+  {% endif %}
+
+  {% if accepted %}
+  <h3 class="idea-section">Your shortlist &middot; {{ accepted|length }}</h3>
+  {% for c in accepted %}{{ idea_card(c, false) }}{% endfor %}
+  {% endif %}
+</main>
+{% endblock %}

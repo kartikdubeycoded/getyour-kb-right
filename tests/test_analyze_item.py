@@ -34,23 +34,25 @@ def test_arxiv_framing_asks_for_the_research_gap():
     assert "GAP" in user  # arXiv items get the research-gap framing
 
 
-class _ModelSpy:
-    """Records which model the client was constructed with; returns valid JSON."""
-
-    def __init__(self, model=None):
-        _ModelSpy.last_model = model
+class _FastFlagSpy:
+    """Records whether the LLM was requested in fast (draft) mode; returns valid JSON."""
 
     def complete(self, system, user):
         return '{"overview":"o","usage":"u","builds":[],"product_ideas":[]}'
 
 
+def _spy_make_llm(model=None, fast=False):
+    _FastFlagSpy.last_fast = fast
+    return _FastFlagSpy()
+
+
 def test_draft_uses_the_fast_model(monkeypatch):
-    monkeypatch.setattr(research, "NvidiaNimClient", _ModelSpy)
+    monkeypatch.setattr(research, "make_llm", _spy_make_llm)
     research.analyze_item(RadarItem(source="news", title="t", url="u"), {})
-    assert _ModelSpy.last_model == research.NIM_DRAFT_MODEL  # pass 1 = fast model
+    assert _FastFlagSpy.last_fast is True  # pass 1 = the provider's small/fast model
 
 
 def test_critic_uses_the_main_model(monkeypatch):
-    monkeypatch.setattr(research, "NvidiaNimClient", _ModelSpy)
+    monkeypatch.setattr(research, "make_llm", _spy_make_llm)
     research.refine_analysis(RadarItem(source="news", title="t", url="u"), {}, {"overview": "d"})
-    assert _ModelSpy.last_model is None  # pass 2 = default (strong) model
+    assert _FastFlagSpy.last_fast is False  # pass 2 = the strong model

@@ -1,10 +1,30 @@
+import calendar
+import time
 import types
+from datetime import UTC, datetime
 
 from app import arxiv_radar
 
 
 def _feed(entries):
     return types.SimpleNamespace(entries=entries)
+
+
+def test_fetch_papers_carries_the_submission_date(monkeypatch):
+    """arXiv sets score=0 for every paper, so the submission date is the ONLY thing that can
+    order the tab."""
+    published = datetime(2026, 7, 28, 18, 30, tzinfo=UTC)
+    entry = {
+        "title": "A paper",
+        "link": "https://arxiv.org/abs/1",
+        "summary": "abstract",
+        "published_parsed": time.gmtime(calendar.timegm(published.timetuple())),
+    }
+    monkeypatch.setattr(arxiv_radar.feedparser, "parse", lambda url, agent=None: _feed([entry]))
+
+    items = arxiv_radar.fetch_papers({"focus": "AI"})
+
+    assert items[0].published_at == published
 
 
 def test_fetch_papers_builds_items_and_dedupes(monkeypatch):

@@ -3,8 +3,11 @@ walking skeleton; real stages swap in across Tasks 4-6."""
 
 import json
 import logging
+import os
 import re
+import time
 from contextlib import asynccontextmanager
+from datetime import UTC, datetime
 from pathlib import Path
 
 from dotenv import load_dotenv
@@ -20,12 +23,16 @@ from app import (
     cards,
     github_radar,
     gnews_radar,
+    heartbeat,
     hn_radar,
     lanes,
+    opportunity_radar,
     reddit_radar,
     research,
     rss_radar,
     store,
+    synthesize,
+    yc_rfs,
 )
 from app.ingest import process_reel
 from app.models import Reel
@@ -41,12 +48,103 @@ load_dotenv()  # read .env in dev (NVIDIA_API_KEY etc.)
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     store.init_db()
-    yield
+    scheduler = heartbeat.start() if os.getenv("DISABLE_HEARTBEAT") != "1" else None
+    try:
+        yield
+    finally:
+        if scheduler is not None:
+            scheduler.shutdown(wait=False)
 
 
 app = FastAPI(title="get-your-knowledge-right", lifespan=lifespan)
 templates = Jinja2Templates(directory=str(BASE_DIR / "templates"))
+
+
+def _aware(moment):
+    """SQLite hands datetimes back naive. Comparing one of those to an aware `now` raises, so
+    everything read from the DB is stamped UTC before it's used in arithmetic."""
+    if moment is not None and moment.tzinfo is None:
+        return moment.replace(tzinfo=UTC)
+    return moment
+
+
+def _ago(delta_seconds: float) -> str:
+    """Humanize a gap the way a header should read: 'just now', '4h ago', '2d ago'."""
+    minutes = int(delta_seconds // 60)
+    if minutes < 2:
+        return "just now"
+    if minutes < 60:
+        return f"{minutes}m ago"
+    hours = minutes // 60
+    return f"{hours}h ago" if hours < 24 else f"{hours // 24}d ago"
+
+
+def sync_status() -> dict:
+    """What the header reports about the heartbeat. `next_in` is deliberately omitted when the
+    scheduler is off — promising a next sync that will never come is worse than saying nothing."""
+    runs = store.recent_syncs(1)
+    last = _aware(runs[0].finished_at) if runs else None
+    if last is None:
+        return {"ever": False, "every": heartbeat.interval_hours()}
+    elapsed = (datetime.now(UTC) - last).total_seconds()
+    every = heartbeat.interval_hours()
+    remaining = max(0.0, every * 3600 - elapsed)
+    return {
+        "ever": True,
+        "ago": _ago(elapsed),
+        "every": every,
+        "next_in": f"{int(remaining // 3600)}h" if remaining >= 3600 else "under an hour",
+        "scheduled": os.getenv("DISABLE_HEARTBEAT") != "1",
+    }
+
+
+# The NEW cutoff is the same for every card on a page, but the macro asks per item — so cache it
+# briefly rather than issuing one query per card.
+_CUTOFF_TTL = 5.0
+_cutoff_cache: tuple[float, object] = (0.0, None)
+
+
+def is_new(item) -> bool:
+    """Did this item publish since the sync before last? See store.new_since for why it's measured
+    against the PREVIOUS run and not the latest one."""
+    global _cutoff_cache
+    now = time.monotonic()
+    if now - _cutoff_cache[0] > _CUTOFF_TTL:
+        _cutoff_cache = (now, store.new_since())
+    cutoff = _cutoff_cache[1]
+    published = _aware(getattr(item, "published_at", None))
+    return bool(cutoff and published and published >= _aware(cutoff))
+
+
+def safe_url(value: str | None) -> str:
+    """Render a stored URL as a link target only if it is actually a web address.
+
+    Item URLs are NOT ours: they arrive from RSS `<link>` elements, search APIs and LLM-extracted
+    text. A hostile or malformed feed can therefore put `javascript:...` into `item.url`, and
+    autoescaping does NOT help — it escapes the quotes so the attribute can't be broken out of, but
+    a `javascript:` value inside a well-formed href still executes on click.
+
+    Allowing only http/https (and site-relative paths) closes the whole scheme class — javascript:,
+    data:, vbscript:, file: — in one place, instead of trusting each of the ten templates that
+    render a URL to guard itself. `detail.html` shows why per-template guards fail: it checked
+    `'http' in link`, which `javascript:alert("http")` passes.
+
+    Anything rejected becomes "#", so the card still renders and stays clickable-looking rather than
+    silently vanishing.
+    """
+    text = (value or "").strip()
+    low = text.lower()
+    if low.startswith(("http://", "https://")):
+        return text
+    if text.startswith("/") and not text.startswith("//"):  # site-relative; // is protocol-relative
+        return text
+    return "#"
+
+
 templates.env.globals["card_image"] = cards.card_image  # used by the shared _card.html macro
+templates.env.globals["sync_status"] = sync_status
+templates.env.globals["is_new"] = is_new
+templates.env.filters["safe_url"] = safe_url
 app.mount("/static", StaticFiles(directory=str(BASE_DIR.parent / "static")), name="static")
 
 
@@ -107,8 +205,11 @@ def home(request: Request) -> HTMLResponse:
     corpus = store.list_all_radar()
     avoid = lanes.avoid_terms(profile)
     lane_rows = [
-        {"idx": idx, "name": name,
-         "count": len(lanes.curate(corpus, topics, limit=500, avoid=avoid))}
+        {
+            "idx": idx,
+            "name": name,
+            "count": len(lanes.curate(corpus, topics, limit=500, avoid=avoid)),
+        }
         for idx, (name, topics) in enumerate(lanes.lanes_from_profile(profile))
     ]
     signal = lanes.pulse(corpus, profile, top=8)
@@ -121,6 +222,9 @@ def home(request: Request) -> HTMLResponse:
         {
             "signal": signal,
             "lanes": lane_rows,
+            # Opportunities lead the page: everything else is reading, this is the part you can
+            # ENTER. store.list_radar already sorts by score, which for opps is relevance+deadline.
+            "opps": store.list_radar("opps")[:6],
             "stream": corpus[:40],
             "saved": store.list_saved(),
             "reels": store.list_recent(limit=8),
@@ -136,17 +240,22 @@ def reels_dashboard(request: Request) -> HTMLResponse:
 
 @app.get("/github", response_class=HTMLResponse)
 def github_tab(request: Request) -> HTMLResponse:
-    """The GitHub radar tab: top repos in the user's focus topics."""
+    """The GitHub radar tab: what's trending RIGHT NOW first, then the top repos in your topics.
+    Fresh leads established — a tool released last week is the thing you'd have missed."""
     return templates.TemplateResponse(
-        request, "github.html", {"items": store.list_radar("github")}
+        request,
+        "github.html",
+        {"items": store.list_radar("trending") + store.list_radar("github")},
     )
 
 
 @app.post("/github/refresh")
 def github_refresh() -> RedirectResponse:
-    """Pull a fresh batch of repos and replace the stored GitHub radar, then show the tab."""
-    items = github_radar.fetch_repos(load_profile())
-    store.replace_radar("github", items)
+    """Pull both halves — trending now, plus repos for your topics. Refreshed independently so a
+    rate-limited search can't wipe the trending list (or the reverse)."""
+    profile = load_profile()
+    refresh_source("trending", github_radar.fetch_trending)
+    refresh_source("github", lambda: github_radar.fetch_repos(profile))
     return RedirectResponse(url="/github", status_code=303)
 
 
@@ -183,6 +292,85 @@ def reddit_refresh() -> RedirectResponse:
         except reddit_radar.RadarError:
             pass  # bad creds / rate limit — keep what we had, the tab still renders
     return RedirectResponse(url="/reddit", status_code=303)
+
+
+@app.get("/ideas", response_class=HTMLResponse)
+def ideas_view(request: Request, generating: int = 0) -> HTMLResponse:
+    """The Idea Space: synthesized opportunities (build / paper) to accept or reject. Accepted ideas
+    are the shortlist; new ones await your call. This is where information becomes knowledge."""
+    return templates.TemplateResponse(
+        request,
+        "ideas.html",
+        {
+            "active_tab": "ideas",
+            "generating": bool(generating),
+            "new_ideas": [_idea_ctx(i) for i in store.list_ideas("new")],
+            "accepted": [_idea_ctx(i) for i in store.list_ideas("accepted")],
+        },
+    )
+
+
+def _generate_ideas() -> None:
+    """Synthesize a fresh batch of ideas from the corpus and store them. Best-effort: a NIM failure
+    or timeout is logged, not raised (it runs in the background after the response is sent)."""
+    try:
+        ideas = synthesize.synthesize_ideas(store.list_all_radar(), load_profile())
+    except Exception:  # noqa: BLE001 — synthesis is best-effort; the page just shows nothing new
+        logging.warning("idea synthesis failed", exc_info=True)
+        return
+    if ideas:
+        store.add_ideas(ideas)
+
+
+@app.post("/ideas/generate")
+def ideas_generate(background_tasks: BackgroundTasks) -> RedirectResponse:
+    """Kick off synthesis in the background (NIM is slow) and return instantly to the triage page,
+    which polls until the new ideas land."""
+    background_tasks.add_task(_generate_ideas)
+    return RedirectResponse(url="/ideas?generating=1", status_code=303)
+
+
+@app.post("/ideas/{idea_id}/accept")
+def idea_accept(idea_id: int) -> RedirectResponse:
+    """Keep an idea on the shortlist to go deep on later."""
+    store.set_idea_status(idea_id, "accepted")
+    return RedirectResponse(url="/ideas", status_code=303)
+
+
+@app.post("/ideas/{idea_id}/reject")
+def idea_reject(idea_id: int) -> RedirectResponse:
+    """Dismiss an idea — it drops out of the triage list."""
+    store.set_idea_status(idea_id, "rejected")
+    return RedirectResponse(url="/ideas", status_code=303)
+
+
+def _idea_ctx(idea) -> dict:
+    """Template shape for one idea: the row plus its decoded source list."""
+    return {"idea": idea, "sources": _load_json_list(idea.sources)}
+
+
+@app.get("/idea/{idea_id}", response_class=HTMLResponse)
+def idea_detail(request: Request, idea_id: int) -> HTMLResponse:
+    """One idea, expanded: the pattern, the plan, its sources, and — once generated — the deep dive
+    (the full actionable plan). The deep dive is generated on demand via the button below."""
+    idea = store.get_idea(idea_id)
+    if idea is None:
+        raise HTTPException(status_code=404, detail="idea not found")
+    return templates.TemplateResponse(
+        request, "idea_detail.html", {"active_tab": "ideas", **_idea_ctx(idea)}
+    )
+
+
+@app.post("/idea/{idea_id}/deepen")
+def idea_deepen(idea_id: int) -> RedirectResponse:
+    """Generate the full actionable plan for this idea and cache it, then show the detail page."""
+    idea = store.get_idea(idea_id)
+    if idea is not None and not idea.depth:
+        try:
+            store.set_idea_depth(idea_id, synthesize.deepen_idea(idea, load_profile()))
+        except Exception:  # noqa: BLE001 — best-effort; the page still shows the idea + a retry
+            logging.warning("idea deepen failed", exc_info=True)
+    return RedirectResponse(url=f"/idea/{idea_id}", status_code=303)
 
 
 @app.get("/lanes", response_class=HTMLResponse)
@@ -292,26 +480,90 @@ def _prewarm_top(n: int = PREWARM_COUNT) -> None:
             _analyze_and_cache(item)
 
 
-@app.post("/refresh-all")
-def refresh_all(background_tasks: BackgroundTasks) -> RedirectResponse:
-    """Pull every source at once into the corpus, then show the curated lanes. Each source is
-    isolated (refresh_source) so one failing or empty fetch never wipes or sinks the others.
-    After the fetches, pre-warm the newest items' analysis in the background."""
-    profile = load_profile()
+def refresh_everything(profile: dict | None = None, eng=None) -> dict[str, bool]:
+    """Pull every source into the corpus. Returns {source: was_updated} so a caller can report what
+    actually landed — a click can redirect and show it, the scheduler can log it.
+
+    Deliberately free of any request/response handling: this is the whole job, callable from a
+    route, from the 6-hourly heartbeat, or from a test with no HTTP layer at all."""
+    profile = load_profile() if profile is None else profile
     # Every per-topic source (github/hn/gnews/arxiv) searches EVERY lane's topics, so the thin
     # lanes (Web Design, Jobs) fill from all of them, not just the focus line. fetch_repos self-caps
     # the topics it searches to GitHub's rate limit (~10 unauth / ~30 with a token) so a SYNC never
     # 429s its tail and shrinks the github corpus. news (rss) has fixed feeds — it ranks, no search.
     lane_topics = lanes.search_topics(profile)
-    refresh_source("github", lambda: github_radar.fetch_repos(profile, topics=lane_topics))
-    refresh_source("hn", lambda: hn_radar.fetch_stories(profile, topics=lane_topics))
-    refresh_source("news", lambda: rss_radar.fetch_news(profile))
-    refresh_source("arxiv", lambda: arxiv_radar.fetch_papers(profile, topics=lane_topics))
-    refresh_source("gnews", lambda: gnews_radar.fetch_news(profile, topics=lane_topics))
+    results = {
+        "trending": refresh_source("trending", github_radar.fetch_trending, eng),
+        "github": refresh_source(
+            "github", lambda: github_radar.fetch_repos(profile, topics=lane_topics), eng
+        ),
+        "hn": refresh_source(
+            "hn", lambda: hn_radar.fetch_stories(profile, topics=lane_topics), eng
+        ),
+        "news": refresh_source("news", lambda: rss_radar.fetch_news(profile), eng),
+        "arxiv": refresh_source(
+            "arxiv", lambda: arxiv_radar.fetch_papers(profile, topics=lane_topics), eng
+        ),
+        "gnews": refresh_source(
+            "gnews", lambda: gnews_radar.fetch_news(profile, topics=lane_topics), eng
+        ),
+        "opps": refresh_source(
+            "opps", lambda: opportunity_radar.fetch_opportunities(profile, lane_topics), eng
+        ),
+        # YC's Requests for Startups: not "what exists" but "what the people writing cheques want
+        # built". A dozen items that change a few times a year — cheap to pull, and the only source
+        # that states demand rather than supply.
+        "ycrfs": refresh_source("ycrfs", lambda: yc_rfs.fetch_yc_rfs(profile, lane_topics), eng),
+    }
     if reddit_radar.has_credentials():
-        refresh_source("reddit", lambda: reddit_radar.fetch_posts(profile))
+        results["reddit"] = refresh_source("reddit", lambda: reddit_radar.fetch_posts(profile), eng)
+    return results
+
+
+@app.post("/refresh-all")
+def refresh_all(background_tasks: BackgroundTasks) -> RedirectResponse:
+    """Pull every source at once into the corpus, then show the curated lanes. Each source is
+    isolated (refresh_source) so one failing or empty fetch never wipes or sinks the others.
+    After the fetches, pre-warm the newest items' analysis in the background."""
+    # Recorded like a scheduled beat so a manual SYNC also moves the "last synced" clock and the
+    # NEW cutoff — otherwise clicking SYNC would leave the header claiming the corpus was stale.
+    run_id = store.start_sync(trigger="manual")
+    store.finish_sync(run_id, refresh_everything())
     background_tasks.add_task(_prewarm_top)  # warm the newest items after responding
     return RedirectResponse(url="/lanes", status_code=303)
+
+
+@app.get("/opps", response_class=HTMLResponse)
+def opps_tab(request: Request) -> HTMLResponse:
+    """Things you can ENTER: open hackathons, soonest-and-most-relevant deadline first. The one
+    tab that produces output instead of more reading."""
+    return templates.TemplateResponse(request, "opps.html", {"items": store.list_radar("opps")})
+
+
+@app.post("/opps/refresh")
+def opps_refresh(background_tasks: BackgroundTasks) -> RedirectResponse:
+    """Pull a fresh batch of open hackathons, replace the stored list, then show the tab."""
+    profile = load_profile()
+    store.replace_radar(
+        "opps", opportunity_radar.fetch_opportunities(profile, lanes.search_topics(profile))
+    )
+    background_tasks.add_task(_prewarm_top, 4)  # warm the top hackathons for instant clicks
+    return RedirectResponse(url="/opps", status_code=303)
+
+
+@app.get("/ycrfs", response_class=HTMLResponse)
+def ycrfs_tab(request: Request) -> HTMLResponse:
+    """What YC is asking founders to build right now — demand, not supply. Ranked by how well each
+    request matches your topics, since a request in your field is the one you could answer."""
+    return templates.TemplateResponse(request, "ycrfs.html", {"items": store.list_radar("ycrfs")})
+
+
+@app.post("/ycrfs/refresh")
+def ycrfs_refresh() -> RedirectResponse:
+    """Re-read YC's RFS page and replace the stored list, then show the tab."""
+    profile = load_profile()
+    store.replace_radar("ycrfs", yc_rfs.fetch_yc_rfs(profile, lanes.search_topics(profile)))
+    return RedirectResponse(url="/ycrfs", status_code=303)
 
 
 @app.get("/news", response_class=HTMLResponse)
@@ -365,8 +617,10 @@ def _analyze_and_cache(item) -> None:
     failure just leaves overview empty (the page shows a fallback)."""
     profile = load_profile()
     try:
-        if item.source == "github":
+        if item.source in github_radar.REPO_SOURCES:
             draft = github_radar.analyze_repo(item, profile)
+        elif item.source == "opps":
+            draft = opportunity_radar.analyze_opportunity(item, profile)
         else:
             draft = research.analyze_item(item, profile)
     except Exception:  # noqa: BLE001 — analysis is best-effort

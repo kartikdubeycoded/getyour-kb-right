@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+{% from "_card.html" import radar_card %}
+{% set active_tab = "ycrfs" %}
+
+{% block title %}yc rfs &middot; get your knowledge right{% endblock %}
+
+{% block header_extra %}
+    <p class="sub">
+      {{ items|length }} request(s) &middot; what YC wants built &middot;
+      <form method="post" action="/ycrfs/refresh" style="display:inline">
+        <button class="refresh" type="submit">&#8635; refresh</button>
+      </form>
+    </p>
+{% endblock %}
+
+{% block body %}
+  <main class="feed feed--hero">
+    {% if not items %}
+      <p class="empty">Nothing yet. Hit <strong>&#8635; refresh</strong> to pull YC's current Requests for Startups.</p>
+    {% endif %}
+    {% for item in items %}
+    {{ radar_card(item, "read the request") }}
+    {% endfor %}
+  </main>
+{% endblock %}

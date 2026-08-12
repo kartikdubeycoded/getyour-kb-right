@@ -7,10 +7,14 @@ pytest
 ruff
 sqlmodel       # Task 2: Reel model + store (pulls SQLAlchemy + pydantic)
 jinja2         # Task 3: dashboard templates
-yt-dlp>=2026.6.9   # Task 4: download a public reel's audio (>= patches CVE-2026-50019/50023/50574)
+yt-dlp>=2026.7.4   # Task 4: download a public reel's audio. The floor is a SECURITY floor, not a
+                   # feature one: yt-dlp parses attacker-influenced URLs on the /ingest path, so it
+                   # is the dependency most worth keeping current. >= patches CVE-2026-50019/50023/
+                   # 50574 and PYSEC-2026-3622 (found by pip-audit, 2026-08-12).
 faster-whisper # Task 5: local transcription (no API key)
 openai         # Task 6: NVIDIA NIM via the OpenAI-compatible API
 pyyaml         # Task 6: load the focus profile
 python-dotenv  # load .env in dev
 feedparser     # tech-radar source #4: parse RSS news / lab-blog feeds
 python-multipart  # parse the save/unsave form posts (FastAPI Form)
+apscheduler>=3.10  # the 6-hourly heartbeat: the radar refreshes itself (app/heartbeat.py)

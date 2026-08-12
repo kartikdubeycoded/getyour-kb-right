@@ -33,6 +33,7 @@ def test_collection_pages_share_one_active_nav_tab(monkeypatch):
             "/hn": "/hn",
             "/reddit": "/reddit",
             "/news": "/news",
+            "/opps": "/opps",
         }
 
         for path, active_href in expected.items():

@@ -4,21 +4,42 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>{% block title %}get your knowledge right{% endblock %}</title>
-  <link rel="stylesheet" href="/static/style.css" />
+  <link rel="stylesheet" href="/static/style.css?v=6" />
 </head>
 <body>
   <header>
     <h1>get<span>&middot;</span>your<span>&middot;</span>knowledge<span>&middot;</span>right</h1>
+    {# Two tiers on purpose. Tier 1 = the four things worth DOING (decide, act, browse your
+       aspects, revisit what you kept). Tier 2 = the raw source firehoses, deliberately quiet —
+       they're where items come FROM, not where you go to choose. Nine equal-weight tabs made
+       every click a coin-flip; hierarchy is the fix. #}
     <nav class="tabs">
-      <a class="tab{% if active_tab == 'home' %} active{% endif %}" href="/">◆ Terminal</a>
-      <a class="tab{% if active_tab == 'reels' %} active{% endif %}" href="/reels">Reels</a>
+      <a class="tab{% if active_tab == 'home' %} active{% endif %}" href="/">Today</a>
+      <a class="tab{% if active_tab == 'ideas' %} active{% endif %}" href="/ideas">✦ Ideas</a>
+      <a class="tab{% if active_tab == 'opps' %} active{% endif %}" href="/opps">&#8987; Hackathons</a>
       <a class="tab{% if active_tab == 'lanes' %} active{% endif %}" href="/lanes">Lanes</a>
       <a class="tab{% if active_tab == 'saved' %} active{% endif %}" href="/saved">&#9733; Saved</a>
+    </nav>
+    <nav class="tabs tabs--sources">
+      <span class="tabs-label">sources</span>
+      <a class="tab{% if active_tab == 'reels' %} active{% endif %}" href="/reels">Reels</a>
       <a class="tab{% if active_tab == 'github' %} active{% endif %}" href="/github">GitHub</a>
       <a class="tab{% if active_tab == 'hn' %} active{% endif %}" href="/hn">Hacker News</a>
-      <a class="tab{% if active_tab == 'reddit' %} active{% endif %}" href="/reddit">Reddit</a>
       <a class="tab{% if active_tab == 'news' %} active{% endif %}" href="/news">News</a>
+      <a class="tab{% if active_tab == 'ycrfs' %} active{% endif %}" href="/ycrfs">YC RFS</a>
+      <a class="tab{% if active_tab == 'reddit' %} active{% endif %}" href="/reddit">Reddit</a>
     </nav>
+    {# The corpus refreshes itself now, so the page has to say when it last did — otherwise there's
+       no way to tell a live radar from a dead one. Only promises a next sync when the scheduler is
+       actually running (it can't refresh while the laptop is off). #}
+    {% set sync = sync_status() %}
+    <p class="sync">
+      {% if sync.ever %}
+        synced {{ sync.ago }}{% if sync.scheduled %} &middot; next in {{ sync.next_in }}{% endif %}
+      {% else %}
+        not synced yet &middot; refreshes every {{ sync.every }}h while the app is running
+      {% endif %}
+    </p>
     {% block header_extra %}{% endblock %}
   </header>
   {% block body %}{% endblock %}

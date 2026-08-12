@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+{% from "_card.html" import radar_card %}
+{% set active_tab = "opps" %}
+
+{% block title %}hackathons &middot; get your knowledge right{% endblock %}
+
+{% block header_extra %}
+    <p class="sub">
+      {{ items|length }} open &middot; ranked by your topics, then closing date &middot;
+      <form method="post" action="/opps/refresh" style="display:inline">
+        <button class="refresh" type="submit">&#8635; refresh</button>
+      </form>
+    </p>
+{% endblock %}
+
+{% block body %}
+  <main class="feed feed--hero">
+    {% if not items %}
+      <p class="empty">Nothing open yet. Hit <strong>&#8635; refresh</strong> to pull live hackathons from Devpost + Unstop.</p>
+    {% endif %}
+    {% for item in items %}
+    {{ radar_card(item, "what could I build for this") }}
+    {% endfor %}
+  </main>
+{% endblock %}

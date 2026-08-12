@@ -17,7 +17,7 @@ def card_image(item) -> str | None:
     """A thumbnail URL for a radar card, or None when we have no free image for that source."""
     source = getattr(item, "source", "") or ""
     url = getattr(item, "url", "") or ""
-    if source == "github":
+    if source in ("github", "trending"):  # both are repos — use the owner's avatar
         owner = _github_owner(url)
         if owner:
             return f"https://github.com/{owner}.png?size=160"

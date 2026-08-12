@@ -34,6 +34,7 @@ class Reel(SQLModel, table=True):
     buildable: str | None = None  # "yes" | "no" — can something useful be built from this?
     build_idea: str | None = None  # if buildable: what to build
     monetization: str | None = None  # if buildable: worst-case how to earn from it
+    project_fit: str | None = None  # "<Project>: how it plugs into a build he's running now"
     error: str | None = None  # failure reason when status == failed
     created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
 
@@ -49,6 +50,11 @@ class RadarItem(SQLModel, table=True):
     summary: str | None = None  # the item's own description
     meta: str | None = None  # display chip, e.g. "⭐ 12.3k · Python"
     score: int = 0  # for ranking within a source (stars, upvotes, points)
+    # When the SOURCE published it — not when we fetched it. `created_at` only records when this row
+    # was inserted, so on a re-fetch a three-day-old article looks as new as this morning's. This is
+    # the field that makes "newest first" mean something. None when the source doesn't say (or says
+    # something we don't trust — see app/freshness.py); those sort last.
+    published_at: datetime | None = Field(default=None, index=True)
     created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
     # breakdown — filled lazily on first view of the item's detail page (AI + README)
     overview: str | None = None  # plain 2-3 sentence what-it-is
@@ -71,3 +77,37 @@ class SavedItem(SQLModel, table=True):
     summary: str | None = None
     meta: str | None = None
     saved_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
+
+
+class SyncRun(SQLModel, table=True):
+    """One pass of the radar refresh — the heartbeat's logbook.
+
+    Two things need this to survive a restart. The header says "last synced 2h ago", which is a
+    lie if it resets whenever the process does. And an item is NEW relative to the sync BEFORE the
+    current one — items are wiped and re-inserted on every refresh (store.replace_radar), so their
+    own created_at is always "just now" and can't answer "is this new to me?". Comparing an item's
+    published_at against the previous run's start can."""
+
+    id: int | None = Field(default=None, primary_key=True)
+    started_at: datetime = Field(default_factory=lambda: datetime.now(UTC), index=True)
+    finished_at: datetime | None = None  # None while in flight, or if the process died mid-sync
+    results: str = ""  # JSON {source: bool} — which sources actually landed
+    trigger: str = "schedule"  # "schedule" (the heartbeat) | "manual" (someone clicked SYNC)
+
+
+class Idea(SQLModel, table=True):
+    """A synthesized OPPORTUNITY — the app's real output. Not a link: a project to build or a paper
+    to write, found by cross-referencing several radar items (news + repos + papers) and naming the
+    gap between them. The user accepts or rejects each; accepted ideas are the shortlist we go deep
+    on. This is where information becomes knowledge."""
+
+    id: int | None = Field(default=None, primary_key=True)
+    title: str                              # the idea's name
+    kind: str = Field(default="build")      # "build" (a project/tool) | "paper" (a research paper)
+    insight: str = ""                       # the pattern/gap across the sources, in plain words
+    plan: str = ""                          # what to build (first step) OR a hypothesis to test
+    why_you: str = ""                       # why it fits this person's focus, goals, reach
+    sources: str = ""                       # JSON list[{title, source, url}] it came from
+    status: str = Field(default="new", index=True)  # new | accepted | rejected
+    depth: str | None = None                # the deep dive, generated on demand once accepted
+    created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))

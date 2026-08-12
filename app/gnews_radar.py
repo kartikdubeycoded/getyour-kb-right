@@ -6,6 +6,7 @@ import urllib.parse
 
 import feedparser
 
+from app import freshness
 from app.github_radar import topics_from_profile
 from app.models import RadarItem
 
@@ -43,6 +44,9 @@ def fetch_news(
                     summary=None,  # Google News summaries are just publisher boilerplate
                     meta=f"🔎 {publisher}" if publisher else "🔎 Google News",
                     score=0,
+                    published_at=freshness.from_struct_time(
+                        entry.get("published_parsed") or entry.get("updated_parsed")
+                    ),
                 )
             )
     return items

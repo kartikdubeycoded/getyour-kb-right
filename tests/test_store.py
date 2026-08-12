@@ -52,3 +52,26 @@ def test_find_or_create_reuses_existing_radar_repo():
     store.replace_radar("github", [item], eng)
     found = store.find_or_create_github_item("openai/whisper", url, eng)
     assert found.overview == "cached"  # reused the radar-pulled item with its cached breakdown
+
+
+def test_ideas_add_list_status_and_depth_roundtrip():
+    eng = _memory_engine()
+    saved = store.add_ideas(
+        [
+            {"title": "Build X", "kind": "build", "insight": "gap", "plan": "p",
+             "why_you": "w", "sources": [{"source": "github", "title": "r", "url": "u"}]},
+            {"title": "Paper Y", "kind": "paper", "insight": "g2", "plan": "h",
+             "why_you": "w2", "sources": []},
+        ],
+        eng,
+    )
+    assert all(i.id is not None and i.status == "new" for i in saved)
+    assert {i.title for i in store.list_ideas("new", eng=eng)} == {"Build X", "Paper Y"}
+
+    store.set_idea_status(saved[0].id, "accepted", eng)
+    assert [i.title for i in store.list_ideas("accepted", eng=eng)] == ["Build X"]
+    assert [i.title for i in store.list_ideas("new", eng=eng)] == ["Paper Y"]
+
+    # the deep dive persists on the accepted idea (exercises the migrated `depth` column)
+    store.set_idea_depth(saved[0].id, "WHAT TO BUILD\nx", eng)
+    assert store.get_idea(saved[0].id, eng).depth.startswith("WHAT TO BUILD")

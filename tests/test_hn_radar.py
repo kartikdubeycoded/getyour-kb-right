@@ -1,3 +1,5 @@
+from datetime import UTC, datetime
+
 from app import hn_radar
 
 
@@ -21,6 +23,22 @@ def test_fetch_stories_builds_items_and_dedupes(monkeypatch):
     assert item.score == 420
     assert "420" in item.meta
     assert "99 comments" in item.summary
+
+
+def test_fetch_stories_carries_the_story_publish_time(monkeypatch):
+    """Algolia reports created_at_i as unix seconds; it must reach the item so HN stories sort
+    against dated items from every other source on one scale."""
+    posted = datetime(2026, 7, 29, 14, 0, tzinfo=UTC)
+    hit = {
+        "objectID": "1",
+        "title": "Show HN",
+        "url": "https://e.co/x",
+        "points": 5,
+        "created_at_i": int(posted.timestamp()),
+    }
+    monkeypatch.setattr(hn_radar, "_search", lambda topic, hits: [hit])
+
+    assert hn_radar.fetch_stories({"focus": "AI"})[0].published_at == posted
 
 
 def test_fetch_stories_falls_back_to_hn_thread_when_no_url(monkeypatch):

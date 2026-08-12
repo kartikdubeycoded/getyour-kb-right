@@ -1,4 +1,52 @@
+from datetime import UTC, datetime
+
 from app import github_radar
+
+
+def test_trending_items_are_dated_to_todays_list(monkeypatch):
+    """The trending mirror carries no date. Undated, these would sort to the BOTTOM of the corpus —
+    burying the one source whose point is "this just blew up". They're stamped with the day the
+    daily list belongs to, not the fetch instant, so a 6-hourly refresh can't re-stamp a week-old
+    trending repo to "now" and let it outrank this morning's news."""
+    import types
+
+    entry = {"title": "a/b", "link": "https://github.com/a/b", "summary": "desc"}
+    monkeypatch.setattr(
+        github_radar.feedparser, "parse", lambda url, agent=None: types.SimpleNamespace(
+            entries=[entry]
+        )
+    )
+
+    items = github_radar.fetch_trending(lists=("all",))
+
+    midnight = datetime.now(UTC).replace(hour=0, minute=0, second=0, microsecond=0)
+    assert items[0].published_at == midnight
+
+
+def test_fetch_repos_uses_last_push_as_the_publish_time(monkeypatch):
+    """pushed_at (last commit) is the honest 'is this alive' signal for a repo — created_at would
+    rank a 2019 project as stale even if it shipped this morning."""
+    repo = {
+        "html_url": "https://github.com/a/b",
+        "full_name": "a/b",
+        "stargazers_count": 10,
+        "pushed_at": "2026-07-30T12:00:00Z",
+    }
+    monkeypatch.setattr(github_radar, "_search", lambda topic, per_topic, token: [repo])
+
+    items = github_radar.fetch_repos({"focus": "AI"})
+
+    assert items[0].published_at == datetime(2026, 7, 30, 12, 0, tzinfo=UTC)
+
+
+def test_fetch_repos_survives_a_repo_with_no_push_date(monkeypatch):
+    repo = {"html_url": "https://github.com/a/b", "full_name": "a/b", "stargazers_count": 1}
+    monkeypatch.setattr(github_radar, "_search", lambda topic, per_topic, token: [repo])
+
+    items = github_radar.fetch_repos({"focus": "AI"})
+
+    assert len(items) == 1
+    assert items[0].published_at is None
 
 
 def test_topics_from_profile_splits_focus():
@@ -98,3 +146,86 @@ def test_analyze_repo_parses_breakdown(monkeypatch):
     assert data["overview"] == "o"
     assert data["builds"] == ["b1", "b2"]
     assert data["product_ideas"] == ["p1"]
+
+
+def _entry(title, link, summary):
+    return {"title": title, "link": link, "summary": summary}
+
+
+def _trending_feed(monkeypatch, entries):
+    import types
+
+    monkeypatch.setattr(
+        github_radar.feedparser,
+        "parse",
+        lambda url, agent=None: types.SimpleNamespace(entries=entries),
+    )
+
+
+def test_fetch_trending_reads_the_repo_line_and_drops_the_readme_dump(monkeypatch):
+    """The trending feed appends the entire README after an <hr>. A card wants the one-liner."""
+    _trending_feed(
+        monkeypatch,
+        [
+            _entry(
+                "owner/newthing",
+                "https://github.com/owner/newthing",
+                "<p>Turns videos into something models can read</p>"
+                "<hr /><h1>newthing</h1><p>install…</p>",
+            )
+        ],
+    )
+
+    items = github_radar.fetch_trending(lists=("all",))
+
+    assert items[0].source == "trending"  # its own source, so a rate-limited search cannot wipe it
+    assert "trending" in github_radar.REPO_SOURCES  # ...but it is still treated as a repo
+    assert items[0].summary == "Turns videos into something models can read"
+    assert "trending" in items[0].meta and "#1" in items[0].meta
+
+
+def test_trending_outranks_established_repos_so_new_tools_lead(monkeypatch):
+    """A repo released this week has ~0 stars, so star-sorting buries it — the exact staleness
+    this fixes. Trending sits in a score band above any real star count."""
+    _trending_feed(
+        monkeypatch, [_entry("owner/fresh", "https://github.com/owner/fresh", "<p>new</p>")]
+    )
+    veteran = {
+        "full_name": "big/famous",
+        "html_url": "https://github.com/big/famous",
+        "description": "400k stars",
+        "stargazers_count": 400_000,
+        "language": "Python",
+    }
+    monkeypatch.setattr(github_radar, "_search", lambda topic, per_topic, token: [veteran])
+
+    fresh = github_radar.fetch_trending(lists=("all",))[0]
+    established = github_radar.fetch_repos({"focus": "AI"}, token=None)[0]
+
+    assert fresh.score > established.score
+
+
+def test_trending_is_a_separate_source_so_it_cannot_shrink_the_github_corpus(monkeypatch):
+    """The regression this design prevents: GitHub search is rate-limited unauthenticated and
+    routinely returns nothing, while the trending RSS almost always succeeds. If both shared one
+    source, a rate-limited sync would replace the whole github corpus with a trending-only list."""
+
+    def rate_limited(topic, per_topic, token):
+        raise github_radar.RadarError("403 rate limited")
+
+    monkeypatch.setattr(github_radar, "_search", rate_limited)
+    _trending_feed(
+        monkeypatch, [_entry("owner/fresh", "https://github.com/owner/fresh", "<p>new</p>")]
+    )
+
+    assert github_radar.fetch_repos({"focus": "AI"}, token=None) == []  # empty -> corpus kept
+    assert {i.source for i in github_radar.fetch_trending(lists=("all",))} == {"trending"}
+
+
+def test_trending_failure_leaves_the_search_half_untouched(monkeypatch):
+    def boom(url, agent=None):
+        raise RuntimeError("mirror down")
+
+    monkeypatch.setattr(github_radar.feedparser, "parse", boom)
+
+    assert github_radar.fetch_trending(lists=("all",)) == []

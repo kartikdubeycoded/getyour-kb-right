@@ -1,20 +1,23 @@
 {% extends "base.html" %}
 
-{% block title %}{{ item.title }} &middot; jay{% endblock %}
+{% block title %}{{ item.title }} &middot; get your knowledge right{% endblock %}
 
 {% block header_extra %}
     <p class="sub">
-      <a class="back" href="/">&larr; terminal</a> &middot;
+      <a class="back" href="/">&larr; back to desk</a> &middot;
       <span class="tag">{{ item.source }}</span> &middot;
-      <a class="more" href="{{ item.url }}" target="_blank" rel="noopener">open source &#8599;</a>
+      <a class="more" href="{{ item.url|safe_url }}" target="_blank" rel="noopener">open source &#8599;</a>
     </p>
 {% endblock %}
 
 {% block body %}
   <main class="detail">
     <h1 class="ititle">{{ item.title }}</h1>
-    {# id/url live in data-* (safe HTML-attr context) so the untrusted url never enters inline JS. #}
-    <div id="analysis" data-item-id="{{ item.id }}" data-source-url="{{ item.url }}">
+    {# id/url live in data-* (safe HTML-attr context) so the untrusted url never enters inline JS.
+       The url is ALSO run through safe_url: the script below assigns it to `a.href`, and a
+       `javascript:` value still executes on click even when it never touched innerHTML. Escaping
+       protects the attribute; only the scheme gate protects the navigation. #}
+    <div id="analysis" data-item-id="{{ item.id }}" data-source-url="{{ item.url|safe_url }}">
       {% if analyzed %}
         {% include "_analysis.html" %}
       {% else %}
@@ -33,7 +36,7 @@
           box.textContent = "Analysis failed. ";
           var a = document.createElement("a");
           a.className = "more";
-          a.href = box.dataset.sourceUrl;  // DOM property, not parsed as HTML
+          a.href = box.dataset.sourceUrl;  // already scheme-gated server-side by safe_url
           a.target = "_blank";
           a.rel = "noopener";
           a.textContent = "open the source ↗";

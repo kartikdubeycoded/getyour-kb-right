@@ -49,6 +49,7 @@ def process_reel(reel_id: int) -> None:
     reel.buildable = result.buildable
     reel.build_idea = result.build_idea
     reel.monetization = result.monetization
+    reel.project_fit = result.project_fit
     reel.status = ReelStatus.done
     store.save_reel(reel)
 

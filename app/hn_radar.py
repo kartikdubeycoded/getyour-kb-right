@@ -6,6 +6,7 @@ import json
 import urllib.parse
 import urllib.request
 
+from app import freshness
 from app.github_radar import topics_from_profile  # same "topics from focus line" logic
 from app.models import RadarItem
 
@@ -58,6 +59,7 @@ def fetch_stories(
                     summary=f"💬 {comments} comments · discuss: {discuss}",
                     meta=f"▲ {points:,} points",
                     score=points,
+                    published_at=freshness.from_epoch(hit.get("created_at_i")),
                 )
             )
     return items

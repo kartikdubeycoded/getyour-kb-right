@@ -8,6 +8,7 @@ import urllib.parse
 
 import feedparser
 
+from app import freshness
 from app.github_radar import topics_from_profile
 from app.models import RadarItem
 
@@ -60,6 +61,8 @@ def fetch_papers(
                 summary=_clean(entry.get("summary", ""), ABSTRACT_LIMIT) or None,
                 meta=f"📄 {authors}" if authors else "📄 arXiv",
                 score=0,
+                published_at=freshness.from_struct_time(entry.get("published_parsed"))
+                or freshness.from_iso(entry.get("published")),
             )
         )
     return items

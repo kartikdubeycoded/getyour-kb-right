@@ -39,6 +39,40 @@ def test_lanes_from_profile_parses_and_falls_back():
     assert "web design" in fallback[0][1]
 
 
+def test_projects_from_profile_parses_named_topic_bags():
+    parsed = lanes.projects_from_profile(
+        {"projects": [
+            {"name": "Jay", "about": "log sniffer", "topics": ["Ollama", "SLM"]},
+            {"name": "no-topics"},  # dropped — a project with no topics can't curate
+            "junk",  # dropped — not a dict
+        ]}
+    )
+    assert parsed == [("Jay", ["Ollama", "SLM"])]  # only the well-formed project survives
+    assert lanes.projects_from_profile({}) == []  # no projects key -> empty, never crashes
+
+
+def test_lanes_from_profile_puts_projects_first():
+    profile = {
+        "projects": [{"name": "Jay", "topics": ["Ollama"]}],
+        "lanes": [{"name": "AI", "topics": ["LLM"]}],
+    }
+    out = lanes.lanes_from_profile(profile)
+    assert out[0][0] == "Jay"  # your builds rank ABOVE generic aspects, everywhere downstream
+    assert [name for name, _ in out] == ["Jay", "AI"]
+
+
+def test_search_topics_fetches_project_keywords():
+    profile = {
+        "focus": "LLM",
+        "projects": [{"name": "Jay", "topics": ["Ollama", "SLM"]}],
+        "lanes": [{"name": "AI", "topics": ["RAG"]}],
+    }
+    topics = lanes.search_topics(profile)
+    # project keywords are in the fetch set so sources actively pull items about your builds
+    assert "Ollama" in topics and "SLM" in topics
+    assert topics.index("Ollama") < topics.index("RAG")  # projects fetched before generic aspects
+
+
 def test_curate_scores_filters_and_orders():
     items = [
         _item(1, "A guide to LLM agents", "build agents"),  # 2 topic hits

@@ -49,3 +49,17 @@ Thumbs.db
 .agents/
 AGENTS.md
 .claude/
+# local tooling scratch: carries a full node_modules and machine-local config, not project source.
+# This repo is PUBLIC, so leaving it untracked is one `git add .` away from publishing it.
+.opencode/
+
+# local server logs
+.server.log
+.server.err.log
+
+
+# local build/process write-ups — working notes, not project source
+reports/
+
+# generated codebase-analysis artifacts (regenerable, go stale) — not project source
+.ua/

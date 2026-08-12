@@ -17,6 +17,7 @@
       {% endif %}
       <div class="row">
         <span class="tag">{{ reel.tag or "&mdash;" }}</span>
+        {% if reel.project_fit %}<span class="badge badge--fit">&#9889; {{ reel.project_fit.split(':')[0] }}</span>{% endif %}
         {% if reel.buildable == "yes" %}<span class="badge">&#128296; build</span>{% endif %}
         <span class="status">{{ reel.status }}</span>
       </div>

@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+{% block title %}{{ idea.title }} &middot; Ideas{% endblock %}
+
+{% block header_extra %}
+  <p class="sub"><a class="back" href="/ideas">&larr; back to ideas</a></p>
+{% endblock %}
+
+{% block body %}
+<main class="detail" style="max-width: 720px;">
+  <div class="idea-top">
+    <span class="idea-kind idea-kind--{{ idea.kind }}">{{ 'Paper' if idea.kind == 'paper' else 'Build' }}</span>
+    <h1 class="ititle" style="margin:0;">{{ idea.title }}</h1>
+  </div>
+
+  {% if idea.insight %}<section><h2>the gap</h2><p class="overview">{{ idea.insight }}</p></section>{% endif %}
+  {% if idea.plan %}
+  <section><h2>{{ 'hypothesis' if idea.kind == 'paper' else 'direction' }}</h2><p class="take">{{ idea.plan }}</p></section>
+  {% endif %}
+  {% if idea.why_you %}<section><h2>why you</h2><p class="idea-why">{{ idea.why_you }}</p></section>{% endif %}
+
+  {% if sources %}
+  <section>
+    <h2>synthesized from</h2>
+    <div class="idea-sources" style="border:0;padding:0;margin:0;">
+      {% for s in sources %}
+      <a class="src-chip src-chip--{{ s.source }}" href="{{ s.url|safe_url }}" target="_blank" rel="noopener">{{ s.source }} &middot; {{ s.title[:48] }}</a>
+      {% endfor %}
+    </div>
+  </section>
+  {% endif %}
+
+  <section class="deepdive-wrap">
+    <h2>the deep dive</h2>
+    {% if idea.depth %}
+      <div class="deepdive">{{ idea.depth }}</div>
+    {% else %}
+      <p class="idea-sub" style="margin:0 0 14px;">Turn this idea into a concrete, actionable plan — {{ 'method, experiments, first step' if idea.kind == 'paper' else 'stack, pieces, your first week' }}.</p>
+      <form method="post" action="/idea/{{ idea.id }}/deepen">
+        <button class="open-repo" type="submit" style="margin:0;">&#10022; Go deep — generate the full plan</button>
+      </form>
+      <p class="idea-why" style="margin-top:10px;">Takes ~10&ndash;20 seconds.</p>
+    {% endif %}
+  </section>
+</main>
+{% endblock %}

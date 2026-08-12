@@ -5,10 +5,10 @@ share the table, store, and feed UI. Items are scored by how well they match the
 topics, so news that matters to this person floats to the top."""
 
 import re
-import time
 
 import feedparser
 
+from app import freshness
 from app.github_radar import topics_from_profile  # reuse the "topics from focus line" logic
 from app.models import RadarItem
 
@@ -16,13 +16,42 @@ _UA = "get-your-knowledge-right"
 
 # (display name, feed url). The ONLY thing to edit to add/remove a source — code never changes.
 # Tech news + straight-from-the-lab/vendor blogs (zero-latency: the same post SF reads at 9am).
+#
+# Probing log, 2026-08-12: these have NO working RSS (404/401/500 on every variant tried), so a
+# future session must NOT waste time re-probing them — they need a different mechanism, not a feed
+# URL: Anthropic, Meta AI, Mistral, deeplearning.ai's The Batch, Kaggle competitions, Hugging Face
+# Papers.
 DEFAULT_FEEDS: list[tuple[str, str]] = [
+    # general tech press
     ("The Verge", "https://www.theverge.com/rss/index.xml"),
     ("Ars Technica", "https://feeds.arstechnica.com/arstechnica/index"),
     ("TechCrunch", "https://techcrunch.com/feed/"),
+    # straight from the labs — the same post SF reads at 9am
     ("OpenAI", "https://openai.com/news/rss.xml"),
     ("NVIDIA", "https://blogs.nvidia.com/feed/"),
     ("Microsoft", "https://blogs.microsoft.com/feed/"),
+    ("Google DeepMind", "https://deepmind.google/blog/rss.xml"),
+    ("Google Research", "https://research.google/blog/rss/"),
+    ("Hugging Face", "https://huggingface.co/blog/feed.xml"),
+    # WHO IS FUNDING WHAT, and what they're asking builders to make. This is the layer that was
+    # missing: the radar knew what EXISTS but not what the people writing cheques want built.
+    ("Y Combinator", "https://www.ycombinator.com/blog/rss"),
+    ("Sequoia", "https://www.sequoiacap.com/feed/"),
+    # a16z publishes on Substack, NOT on a16z.com — a16z.com/feed/ and /podcasts/feed/ both 404.
+    # This is the one that resolves (it 301s to www.a16z.news/feed). Don't "fix" it back to the
+    # main domain; that path was probed live twice and has no feed.
+    ("a16z", "https://a16z.substack.com/feed"),
+    ("Product Hunt", "https://www.producthunt.com/feed"),
+    # practitioners who surface new tools days before the press does
+    ("Latent Space", "https://www.latent.space/feed"),
+    ("Simon Willison", "https://simonwillison.net/atom/everything/"),
+    ("Lobsters", "https://lobste.rs/rss"),
+    # curated newsletters — a human already filtered the firehose
+    ("Import AI", "https://importai.substack.com/feed"),
+    ("TLDR", "https://tldr.tech/api/rss/tech"),
+    # engineering + web-craft (the Web Design lane is thin)
+    ("Cloudflare", "https://blog.cloudflare.com/rss/"),
+    ("Smashing Magazine", "https://www.smashingmagazine.com/feed/"),
 ]
 
 _TAG_RE = re.compile(r"<[^>]+>")
@@ -75,11 +104,12 @@ def fetch_news(profile: dict, per_feed: int = 6) -> list[RadarItem]:
                 continue
             seen.add(link)
             summary = _clean(entry.get("summary", ""))
-            published = entry.get("published_parsed") or entry.get("updated_parsed")
-            ts = time.mktime(published) if published else 0.0
+            published = freshness.from_struct_time(
+                entry.get("published_parsed") or entry.get("updated_parsed")
+            )
             collected.append(
                 (
-                    ts,
+                    published.timestamp() if published else 0.0,
                     RadarItem(
                         source="news",
                         title=title,
@@ -87,6 +117,7 @@ def fetch_news(profile: dict, per_feed: int = 6) -> list[RadarItem]:
                         summary=summary or None,
                         meta=f"📰 {name}",
                         score=_score(f"{title} {summary}", topics),
+                        published_at=published,
                     ),
                 )
             )

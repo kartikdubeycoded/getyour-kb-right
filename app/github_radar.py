@@ -4,15 +4,31 @@ scraping — this is the documented public API. Returns RadarItems ready to stor
 
 import json
 import os
+import re
 import urllib.parse
 import urllib.request
 from datetime import UTC, datetime, timedelta
 
+import feedparser
+
+from app import freshness
 from app.models import RadarItem
 
 SEARCH_URL = "https://api.github.com/search/repositories"
 README_URL = "https://api.github.com/repos/{}/readme"
+# GitHub's trending page has no API, but it's published as RSS by this long-running mirror.
+# Search finds ESTABLISHED repos (sorted by stars); trending finds the ones that appeared THIS
+# WEEK — the "a new repo just dropped and it's useful" signal that star-sorting can never give.
+TRENDING_URL = "https://mshibanami.github.io/GitHubTrendingRSS/daily/{}.xml"
+TRENDING_LISTS = ("all", "python")
+# Both of these are repos: they get the README-based breakdown and share the GitHub tab.
+REPO_SOURCES = ("github", "trending")
+# Trending repos are new, so they have few stars and would sink under 100k-star veterans in a
+# star-sorted tab. This band lifts them above any real star count so "new" leads "big" — staleness
+# is the failure mode we're fixing. Rank inside the band preserves the trending order.
+TRENDING_SCORE_BASE = 1_000_000
 _UA = "get-your-knowledge-right"
+_TAG_RE = re.compile(r"<[^>]+>")
 
 
 class RadarError(Exception):
@@ -64,9 +80,9 @@ def fetch_readme(full_name: str, token: str | None = None, max_chars: int = 3500
 def analyze_repo(item: RadarItem, profile: dict, client=None, token: str | None = None) -> dict:
     """AI breakdown of a repo FOR this person: overview, usage, builds, product ideas. Returns a
     dict with those keys (lists for builds/product_ideas)."""
-    from app.research import NvidiaNimClient, _extract_json
+    from app.research import _extract_json, make_llm
 
-    client = client or NvidiaNimClient()
+    client = client or make_llm()
     readme = fetch_readme(item.title, token)
     system = (
         "You explain a GitHub repo to a specific builder and return STRICT JSON only. Keys: "
@@ -85,6 +101,59 @@ def analyze_repo(item: RadarItem, profile: dict, client=None, token: str | None 
         f"README (truncated):\n{readme or '(unavailable)'}"
     )
     return _extract_json(client.complete(system, user))
+
+
+def _trending_description(summary: str) -> str:
+    """The feed puts the repo's one-line description before an <hr>, then dumps the whole README
+    after it. Keep only the description — the README is noise on a card."""
+    head = re.split(r"<hr\s*/?>", summary or "", maxsplit=1)[0]
+    return re.sub(r"\s+", " ", _TAG_RE.sub("", head)).strip()[:300]
+
+
+def fetch_trending(lists: tuple[str, ...] = TRENDING_LISTS, per_list: int = 12) -> list[RadarItem]:
+    """Repos trending on GitHub right now, as RadarItems under their OWN source ('trending').
+
+    Why a separate source and not just more github items: the two halves fail independently.
+    Search is rate-limited and routinely returns nothing unauthenticated, while this RSS pull
+    almost always succeeds. Merged into one batch, a rate-limited sync would ship a trending-only
+    list that then REPLACES the github corpus and shrinks it. Separate sources refresh separately,
+    so neither can ever wipe the other. Analysis and the GitHub tab treat both alike (see
+    REPO_SOURCES) — a trending repo is still a repo."""
+    # The trending mirror carries NO date field — only title/link/summary. Left undated these would
+    # sort last in the corpus (published_at NULLs go to the bottom), burying the one source whose
+    # entire point is "this just blew up". It's the DAILY list, so the honest timestamp is the day
+    # that list belongs to: midnight UTC today. Using the exact fetch time instead would re-stamp
+    # the same repos to "now" on every 6-hourly refresh, letting a repo that has been trending all
+    # week permanently outrank this morning's actual news.
+    todays_list = datetime.now(UTC).replace(hour=0, minute=0, second=0, microsecond=0)
+    items: list[RadarItem] = []
+    seen: set[str] = set()
+    for name in lists:
+        try:
+            parsed = feedparser.parse(TRENDING_URL.format(name), agent=_UA)
+        except Exception:  # noqa: BLE001 — one bad list shouldn't sink the refresh
+            continue
+        for rank, entry in enumerate(parsed.entries[:per_list]):
+            url = entry.get("link")
+            full_name = entry.get("title")
+            if not url or not full_name or url in seen:
+                continue
+            seen.add(url)
+            items.append(
+                RadarItem(
+                    source="trending",
+                    title=full_name,
+                    url=url,
+                    summary=_trending_description(entry.get("summary", "")) or None,
+                    meta=f"🔥 trending {'' if name == 'all' else name + ' '}· #{rank + 1}",
+                    score=TRENDING_SCORE_BASE - rank,
+                    published_at=freshness.from_struct_time(
+                        entry.get("published_parsed") or entry.get("updated_parsed")
+                    )
+                    or todays_list,
+                )
+            )
+    return items
 
 
 def fetch_repos(
@@ -122,6 +191,9 @@ def fetch_repos(
                     summary=repo.get("description"),
                     meta=f"⭐ {stars:,} · {lang}",
                     score=stars,
+                    # pushed_at = last commit. For a repo that's the honest "is this alive" signal;
+                    # created_at would rank a 2019 project as stale even if it shipped this morning.
+                    published_at=freshness.from_iso(repo.get("pushed_at")),
                 )
             )
     return items

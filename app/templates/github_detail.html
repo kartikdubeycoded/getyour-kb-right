@@ -12,7 +12,7 @@
     <h1>{{ item.title }} <span class="status">· {{ item.meta }}</span></h1>
   </header>
   <main class="detail">
-    <a class="open-repo" href="{{ item.url }}" target="_blank" rel="noopener">🚀 Open on GitHub</a>
+    <a class="open-repo" href="{{ item.url|safe_url }}" target="_blank" rel="noopener">🚀 Open on GitHub</a>
 
     {% if item.overview %}
     <section><h2>Overview</h2><p>{{ item.overview }}</p></section>
@@ -38,7 +38,7 @@
     </section>
     {% endif %}
 
-    <a class="open-repo" href="{{ item.url }}" target="_blank" rel="noopener">🚀 Open on GitHub</a>
+    <a class="open-repo" href="{{ item.url|safe_url }}" target="_blank" rel="noopener">🚀 Open on GitHub</a>
   </main>
 </body>
 </html>

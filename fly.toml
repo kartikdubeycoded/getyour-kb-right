@@ -1,0 +1,35 @@
+# Fly.io deploy config for get-your-knowledge-right.
+# `fly launch` reads this + the Dockerfile. App name must be globally unique — change if taken.
+app = "gykr"
+primary_region = "bom"   # Mumbai — runs near you, low latency for the iOS Shortcut
+
+[build]
+
+[env]
+  # SQLite corpus + downloaded media live on the persistent volume (mounted at /data below),
+  # so they survive redeploys and restarts.
+  DATABASE_URL = "sqlite:////data/reels.db"
+  MEDIA_DIR = "/data/media"
+  THUMB_DIR = "/data/thumbs"
+  # engine defaults also set in the Dockerfile; kept here so they're visible at the deploy layer.
+  TRANSCRIBER = "groq"
+  LLM_PROVIDER = "groq"
+
+[http_service]
+  internal_port = 8000
+  force_https = true
+  # min_machines_running = 1 keeps the app always awake so a reel shared with the laptop off is
+  # processed immediately (Fly bills a few $/mo for one small machine). Set to 0 to save money —
+  # then the machine sleeps when idle and cold-starts on the next request (the reel is still caught,
+  # but the after-response processing can be cut short by the sleep). Your call on cost vs. instant.
+  auto_stop_machines = "suspend"
+  auto_start_machines = true
+  min_machines_running = 1
+
+[[mounts]]
+  source = "gykr_data"
+  destination = "/data"
+
+[[vm]]
+  size = "shared-cpu-1x"
+  memory = "512mb"   # plenty without the local whisper model (Groq does transcription)

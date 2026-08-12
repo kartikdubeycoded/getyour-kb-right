@@ -12,6 +12,7 @@ import os
 import urllib.parse
 import urllib.request
 
+from app import freshness
 from app.models import RadarItem
 
 TOKEN_URL = "https://www.reddit.com/api/v1/access_token"
@@ -96,6 +97,7 @@ def fetch_posts(profile: dict, per_sub: int = 6) -> list[RadarItem]:
                     summary=body[:280] or post.get("url"),  # self-text excerpt, else the linked URL
                     meta=f"⬆ {ups:,} · r/{post.get('subreddit', sub)}",
                     score=ups,
+                    published_at=freshness.from_epoch(post.get("created_utc")),
                 )
             )
     return items

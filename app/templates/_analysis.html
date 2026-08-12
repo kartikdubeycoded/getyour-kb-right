@@ -13,6 +13,7 @@
   </section>
   {% endif %}
 {% else %}
-  <section><p class="empty">Couldn't analyze this one (NIM key or rate limit).
-    <a class="more" href="{{ item.url }}" target="_blank" rel="noopener">open the source &#8599;</a></p></section>
+  <section><p class="empty">Couldn't analyze this one — the LLM call failed. Check LLM_PROVIDER and
+    that provider's key in <code>.env</code>, then reload.
+    <a class="more" href="{{ item.url|safe_url }}" target="_blank" rel="noopener">open the source &#8599;</a></p></section>
 {% endif %}

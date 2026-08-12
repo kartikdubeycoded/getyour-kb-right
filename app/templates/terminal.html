@@ -3,29 +3,44 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>JAY · knowledge terminal</title>
-  <link rel="stylesheet" href="/static/terminal.css" />
+  <title>get your knowledge right</title>
+  <link rel="stylesheet" href="/static/terminal.css?v=4" />
 </head>
 <body>
   <header class="hud">
-    <span class="brand">JAY<b> // KNOWLEDGE TERMINAL</b></span>
+    <span class="brand">get·your·knowledge·right <b id="today">your reading desk</b></span>
     <form class="search" method="get" action="/search">
       <input id="q" type="search" name="q" placeholder="search every source — repos · news · papers · saved…" autocomplete="off" />
       <span class="kbd">/</span>
     </form>
-    <span class="clock" id="clock">--:--:--</span>
-    <span class="live">LIVE</span>
+    <a class="refresh" href="/ideas" style="text-decoration:none;">✦ Ideas</a>
+    <a class="refresh" href="/opps" style="text-decoration:none;">⏳ Hackathons</a>
     <form class="inline" method="post" action="/refresh-all">
-      <button class="refresh" type="submit">↻ SYNC</button>
+      <button class="refresh" type="submit">↻ Pull latest</button>
     </form>
   </header>
 
   <main class="terminal">
+    <!-- DO — the only panel on this page that produces output instead of more reading, so it
+         leads. Open hackathons you could still enter, most-relevant-and-closing-soonest first. -->
+    <section class="panel act">
+      <div class="panel-h"><span>Things you can enter</span><a href="/opps">all →</a></div>
+      <div class="panel-body">
+        {% if not opps %}<p class="empty">No open hackathons pulled yet — hit Pull latest.</p>{% endif %}
+        {% for o in opps %}
+        <a class="act-row" href="/item/{{ o.id }}">
+          <span class="t">{{ o.title }}</span>
+          <span class="when">{{ o.meta.split(' · ')[0] }}</span>
+        </a>
+        {% endfor %}
+      </div>
+    </section>
+
     <!-- SIGNAL -->
     <section class="panel signal">
-      <div class="panel-h"><span>◢ Signal</span><span class="n">heating up</span></div>
+      <div class="panel-h"><span>Heating up</span><span class="n">across sources</span></div>
       <div class="panel-body">
-        {% if not signal %}<p class="empty">No signal yet — hit ↻ SYNC.</p>{% endif %}
+        {% if not signal %}<p class="empty">Nothing heating up yet — pull latest.</p>{% endif %}
         {% for s in signal %}
         <a class="sig-row" href="/search?q={{ s.topic | urlencode }}">
           <span class="lab">{{ s.topic }}</span>
@@ -38,9 +53,9 @@
 
     <!-- STREAM -->
     <section class="panel stream">
-      <div class="panel-h"><span>◢ Stream</span><span class="n">{{ stream|length }} · all sources</span></div>
+      <div class="panel-h"><span>Latest</span><span class="n">{{ stream|length }} · all sources</span></div>
       <div class="panel-body">
-        {% if not stream %}<p class="empty">Corpus empty — hit ↻ SYNC to pull every source.</p>{% endif %}
+        {% if not stream %}<p class="empty">Nothing here yet — pull latest to fill the desk.</p>{% endif %}
         {% for item in stream %}
         <a class="row" href="/item/{{ item.id }}">
           <span class="time">{{ item.created_at.strftime('%H:%M') }}</span>
@@ -53,7 +68,7 @@
 
     <!-- LANES -->
     <section class="panel lanes">
-      <div class="panel-h"><span>◢ Lanes</span><a href="/lanes">all →</a></div>
+      <div class="panel-h"><span>Your lanes</span><a href="/lanes">all →</a></div>
       <div class="panel-body">
         {% for lane in lanes %}
         <a class="lane-row" href="/lane/{{ lane.idx }}">
@@ -66,12 +81,12 @@
 
     <!-- SAVED -->
     <section class="panel saved">
-      <div class="panel-h"><span>★ Saved</span><a href="/saved">{{ saved|length }} →</a></div>
+      <div class="panel-h"><span>Saved</span><a href="/saved">{{ saved|length }} →</a></div>
       <div class="panel-body">
         {% if not saved %}<p class="empty">Nothing kept yet.</p>{% endif %}
         <div class="chips">
           {% for item in saved %}
-          <a class="chip" href="{{ item.url }}" target="_blank" rel="noopener">{{ item.title }}</a>
+          <a class="chip" href="{{ item.url|safe_url }}" target="_blank" rel="noopener">{{ item.title }}</a>
           {% endfor %}
         </div>
       </div>
@@ -79,7 +94,7 @@
 
     <!-- REELS -->
     <section class="panel reels">
-      <div class="panel-h"><span>◢ Reels</span><a href="/reels">all →</a></div>
+      <div class="panel-h"><span>Reels</span><a href="/reels">all →</a></div>
       <div class="panel-body">
         {% if not reels %}<p class="empty">No reels yet.</p>{% endif %}
         {% for reel in reels %}
@@ -93,9 +108,9 @@
   </main>
 
   <script>
-    const clk = document.getElementById('clock');
-    setInterval(() => { clk.textContent = new Date().toLocaleTimeString('en-GB'); }, 1000);
-    clk.textContent = new Date().toLocaleTimeString('en-GB');
+    // a calm reading-desk dateline, not a ticking clock
+    document.getElementById('today').textContent =
+      new Date().toLocaleDateString(undefined, { weekday: 'long', day: 'numeric', month: 'long' });
     // press "/" anywhere to jump to search
     document.addEventListener('keydown', (e) => {
       if (e.key === '/' && document.activeElement.id !== 'q') { e.preventDefault(); document.getElementById('q').focus(); }
