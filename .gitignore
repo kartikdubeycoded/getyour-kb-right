@@ -45,7 +45,7 @@ Thumbs.db
 .vscode/
 .idea/
 
-# agent tooling (codex/claude skill frameworks — not part of this project)
+# local editor/tooling config — machine-specific, not part of this project
 .agents/
 AGENTS.md
 .claude/
