@@ -2,7 +2,11 @@ services:
   app:
     build: .
     ports:
-      - "8000:8000"
+      # Bound to LOOPBACK on purpose. A bare "8000:8000" publishes on every interface, and since
+      # INGEST_TOKEN is unset by default that would hand your whole corpus to anyone on the same
+      # network the moment you run this. To serve it to other machines, set INGEST_TOKEN in .env
+      # FIRST, then change this to "0.0.0.0:8000:8000" — in that order, never the reverse.
+      - "127.0.0.1:8000:8000"
     env_file:
       - .env
     environment:

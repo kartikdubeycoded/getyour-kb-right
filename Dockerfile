@@ -21,6 +21,15 @@ COPY app ./app
 COPY static ./static
 COPY profile.example.yaml ./profile.example.yaml
 
+# Run as a non-root user. The app only ever needs to write to its data dir, so there is no reason
+# for a process that parses untrusted URLs and third-party feeds to be root inside the container.
+# /app/data is created and chowned here because the named volume mounts over it at runtime and
+# inherits this ownership — without it the unprivileged user cannot write the database.
+RUN useradd --create-home --uid 10001 appuser \
+    && mkdir -p /app/data \
+    && chown -R appuser:appuser /app
+USER appuser
+
 EXPOSE 8000
 
 # The host maps $PORT; default to 8000 for local `docker run`. Real profile arrives via PROFILE_YAML.
