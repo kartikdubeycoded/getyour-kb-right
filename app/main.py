@@ -30,6 +30,7 @@ from app import (
     heartbeat,
     hn_radar,
     lanes,
+    last30days_bridge,
     opportunity_radar,
     reddit_radar,
     research,
@@ -627,8 +628,9 @@ def _analyze_and_cache(item) -> None:
             draft = research.analyze_item(item, profile)
     except Exception:  # noqa: BLE001 — analysis is best-effort
         return
+    signal = last30days_bridge.fetch_signal(item.title)  # best-effort; None on any failure
     try:
-        data = research.refine_analysis(item, profile, draft)
+        data = research.refine_analysis(item, profile, draft, signal=signal)
     except Exception:  # noqa: BLE001 — the critic pass is a bonus; keep the draft
         data = draft
     _save_breakdown(item, data)

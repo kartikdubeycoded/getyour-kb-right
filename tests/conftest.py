@@ -13,10 +13,18 @@ boot would do before serving the first request.
 
 import pytest
 
-from app import store
+from app import last30days_bridge, store
 
 
 @pytest.fixture(scope="session", autouse=True)
 def _schema_is_current():
     """Create/migrate the default database before any test touches it."""
     store.init_db()
+
+
+@pytest.fixture(autouse=True)
+def _no_real_last30days_calls(monkeypatch):
+    """fetch_signal shells out to a real subprocess that hits live Reddit/HN/GitHub — ~70s and a
+    network dependency. No test should pay that cost or flake on a dead connection; a test that
+    wants to exercise real signal should re-patch this explicitly."""
+    monkeypatch.setattr(last30days_bridge, "fetch_signal", lambda *a, **k: None)

@@ -42,7 +42,7 @@ def test_analysis_fragment_is_two_pass_and_caches(monkeypatch):
         calls["draft"] += 1
         return {"overview": "shallow", "usage": "u", "builds": ["b"], "product_ideas": ["p"]}
 
-    def refine(item, profile, d, client=None):
+    def refine(item, profile, d, client=None, signal=None):
         calls["refine"] += 1
         return {"overview": "DEEP read", "usage": "u2", "builds": ["B1"], "product_ideas": ["P1"]}
 
@@ -86,7 +86,9 @@ def test_github_item_uses_the_repo_analyzer_not_the_generic_one(monkeypatch):
         research, "analyze_item", lambda *a, **k: calls.__setitem__("generic", 1)
     )
     monkeypatch.setattr(
-        research, "refine_analysis", lambda item, profile, draft, client=None: draft
+        research,
+        "refine_analysis",
+        lambda item, profile, draft, client=None, signal=None: draft,
     )
     with _client(monkeypatch) as client:
         gh = RadarItem(source="github", title="repo X", url="u", meta="m")

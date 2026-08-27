@@ -6,6 +6,9 @@
 secrets/
 profile.yaml
 
+# vendored third-party tools (cloned separately, not our code — see README setup step)
+vendor/
+
 # python
 __pycache__/
 *.py[cod]
