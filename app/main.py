@@ -17,6 +17,10 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel
 
+load_dotenv()  # read .env in dev (NVIDIA_API_KEY etc.) — must run before importing
+# app.research, which reads NIM_MODEL/NIM_DRAFT_MODEL into module-level constants at
+# import time; importing it first would silently freeze those to their hardcoded defaults.
+
 from app import (
     arxiv_radar,
     auth,
@@ -41,8 +45,6 @@ from app.repo_link import find_repo
 from app.thumbs import THUMB_DIR
 
 BASE_DIR = Path(__file__).resolve().parent
-
-load_dotenv()  # read .env in dev (NVIDIA_API_KEY etc.)
 
 
 @asynccontextmanager
