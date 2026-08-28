@@ -28,3 +28,14 @@ def _no_real_last30days_calls(monkeypatch):
     network dependency. No test should pay that cost or flake on a dead connection; a test that
     wants to exercise real signal should re-patch this explicitly."""
     monkeypatch.setattr(last30days_bridge, "fetch_signal", lambda *a, **k: None)
+
+
+@pytest.fixture(autouse=True)
+def _auth_gate_off_by_default(monkeypatch):
+    """Run the suite as if no INGEST_TOKEN were configured.
+
+    The gate reads the live environment, and `app.main` loads the developer's real `.env` at import.
+    So the moment a token is set for real use, twenty route tests start 401-ing — the suite would
+    pass or fail depending on whether the machine happens to be exposed to the internet that week.
+    Tests that exercise the gate (tests/test_auth.py) set the variable themselves."""
+    monkeypatch.delenv("INGEST_TOKEN", raising=False)
