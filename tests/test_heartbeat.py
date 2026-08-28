@@ -261,3 +261,70 @@ def test_a_broken_digest_cannot_sink_the_beat(monkeypatch):
     monkeypatch.setattr(heartbeat.store, "new_since", boom)
 
     assert heartbeat._push_digest(eng) is False  # returns, does not raise
+
+
+# --- when the FIRST beat lands (the staleness bug) ---
+#
+# The radar sat nine days stale with a "healthy" scheduler running: an interval job with no start
+# time fires one full interval after startup, so a 6-hourly beat on a laptop that is never up for
+# six unbroken hours never beat at all. These pin the fix — the clock decides, not the uptime.
+
+
+def test_first_beat_is_immediate_when_nothing_has_ever_synced(monkeypatch):
+    monkeypatch.setattr(store, "recent_syncs", lambda limit=1, eng=None: [])
+    now = datetime.now(UTC)
+    first = heartbeat.first_beat_at(6.0, now=now)
+    assert first == now + timedelta(seconds=heartbeat.STARTUP_GRACE_SECONDS)
+
+
+def test_first_beat_is_immediate_when_the_last_sync_is_overdue(monkeypatch):
+    """The real reported case: last sync nine days ago, app restarted, corpus must refresh now."""
+    stale = datetime.now(UTC) - timedelta(days=9)
+    monkeypatch.setattr(
+        store, "recent_syncs", lambda limit=1, eng=None: [_finished(stale)]
+    )
+    now = datetime.now(UTC)
+    assert heartbeat.first_beat_at(6.0, now=now) == now + timedelta(
+        seconds=heartbeat.STARTUP_GRACE_SECONDS
+    )
+
+
+def test_a_recent_sync_is_not_refetched_on_every_restart(monkeypatch):
+    """The other half: restarting three times in a minute must not trigger three full syncs. The
+    next beat is one interval after the last SYNC, not one interval after this process booted."""
+    recent = datetime.now(UTC) - timedelta(hours=1)
+    monkeypatch.setattr(
+        store, "recent_syncs", lambda limit=1, eng=None: [_finished(recent)]
+    )
+    assert heartbeat.first_beat_at(6.0) == recent + timedelta(hours=6)
+
+
+def test_a_naive_stored_timestamp_is_treated_as_utc(monkeypatch):
+    """SQLite returns naive datetimes; comparing one to an aware `now` raises. A crash here would
+    take the scheduler down at startup, which is exactly when it must not fail."""
+    naive_recent = (datetime.now(UTC) - timedelta(hours=1)).replace(tzinfo=None)
+    monkeypatch.setattr(
+        store, "recent_syncs", lambda limit=1, eng=None: [_finished(naive_recent)]
+    )
+    first = heartbeat.first_beat_at(6.0)
+    assert first.tzinfo is not None
+
+
+def test_an_unreadable_logbook_still_beats(monkeypatch):
+    """A broken sync table must leave the radar refreshing, not silently frozen forever."""
+
+    def boom(limit=1, eng=None):
+        raise RuntimeError("no such table: syncrun")
+
+    monkeypatch.setattr(store, "recent_syncs", boom)
+    now = datetime.now(UTC)
+    assert heartbeat.first_beat_at(6.0, now=now) == now + timedelta(
+        seconds=heartbeat.STARTUP_GRACE_SECONDS
+    )
+
+
+class _finished:
+    """Minimal stand-in for a SyncRun row: the only field first_beat_at reads."""
+
+    def __init__(self, finished_at):
+        self.finished_at = finished_at

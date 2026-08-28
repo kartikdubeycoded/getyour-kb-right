@@ -20,15 +20,21 @@ Two safety rules, both deliberate:
 import asyncio
 import logging
 import os
+from datetime import UTC, datetime, timedelta
 
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 
-from app import notify, store
+from app import freshness, notify, store
 
 # Hours between automatic refreshes. Env-overridable mainly so a test (or a live check) can set
 # something tiny and watch two cycles fire without waiting a quarter of a day.
 DEFAULT_HOURS = 6.0
 JOB_ID = "radar-refresh"
+
+# How long after startup an overdue catch-up beat lands. Not zero: a sync is heavy blocking work,
+# and firing it in the same instant the server binds means the first page load races a full refresh.
+# A few seconds is enough for the app to be answering requests before the fetching starts.
+STARTUP_GRACE_SECONDS = 10
 
 
 def interval_hours() -> float:
@@ -109,19 +115,50 @@ async def _beat() -> None:
     await asyncio.to_thread(run_refresh)
 
 
+def first_beat_at(hours: float, now: datetime | None = None) -> datetime:
+    """When the FIRST beat should land after a start-up.
+
+    This is the whole reason the radar can go stale. An APScheduler interval job with no explicit
+    start time fires one full interval AFTER `start()` — so a 6-hourly job on a laptop that is never
+    up for six unbroken hours refreshes exactly never. The corpus then freezes at whatever the last
+    manual SYNC left behind, while the header cheerfully reports a next sync that keeps receding.
+
+    So the clock, not the process lifetime, decides: if the last completed sync is older than one
+    interval (or there has never been one), the radar is overdue and beats almost immediately on
+    boot. Otherwise the next beat lands one interval after that last sync — the schedule the data
+    deserves, not the schedule this process happens to have been alive for.
+    """
+    now = now or datetime.now(UTC)
+    catch_up = now + timedelta(seconds=STARTUP_GRACE_SECONDS)
+    try:
+        runs = store.recent_syncs(1)
+        last = freshness.aware(runs[0].finished_at) if runs else None
+    except Exception:  # noqa: BLE001 — an unreadable logbook must not stop the radar beating
+        logging.exception("heartbeat: could not read the last sync; treating the radar as overdue")
+        return catch_up
+    if last is None:
+        return catch_up
+    due = last + timedelta(hours=hours)
+    return due if due > catch_up else catch_up
+
+
 def start(scheduler: AsyncIOScheduler | None = None) -> AsyncIOScheduler:
     """Begin beating. Returns the scheduler so the caller can shut it down on app exit."""
     scheduler = scheduler or AsyncIOScheduler()
     hours = interval_hours()
+    first = first_beat_at(hours)
     scheduler.add_job(
         _beat,
         "interval",
         hours=hours,
         id=JOB_ID,
+        next_run_time=first,
         coalesce=True,
         max_instances=1,
         replace_existing=True,
     )
     scheduler.start()
-    logging.info("heartbeat: refreshing every %sh", hours)
+    overdue = first <= datetime.now(UTC) + timedelta(seconds=STARTUP_GRACE_SECONDS + 1)
+    logging.info("heartbeat: every %sh; first beat %s", hours,
+                 "now (radar was overdue)" if overdue else first.strftime("%H:%M UTC"))
     return scheduler
