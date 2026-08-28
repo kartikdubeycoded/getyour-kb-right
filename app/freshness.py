@@ -73,3 +73,54 @@ def from_iso(raw) -> datetime | None:
     if moment.tzinfo is None:
         moment = moment.replace(tzinfo=UTC)
     return _sane(moment.astimezone(UTC))
+
+
+# ---- reading a timestamp back out (the clock the UI and the heartbeat share) ----
+#
+# Everything above turns a source's date INTO a UTC datetime. Everything below turns one back into
+# something a human reads. Both live here so the project has exactly one clock: if the app and the
+# scheduler ever disagreed about "how old is this", the header would contradict the feed.
+
+
+def aware(moment) -> datetime | None:
+    """SQLite hands datetimes back naive. Comparing naive against aware raises, so attach UTC —
+    which is what they were stored as.
+
+    Anything that is not a datetime — None, or a Jinja Undefined from a row type that has no date
+    column — degrades to None. These are template globals: a missing attribute must render as "no
+    date", never as a 500 on the page.
+    """
+    if not isinstance(moment, datetime):
+        return None
+    return moment if moment.tzinfo else moment.replace(tzinfo=UTC)
+
+
+def humanize(delta_seconds: float) -> str:
+    """A gap in the words a feed uses: 'just now', '42m ago', '4h ago', '9d ago'."""
+    minutes = int(delta_seconds // 60)
+    if minutes < 2:
+        return "just now"
+    if minutes < 60:
+        return f"{minutes}m ago"
+    hours = minutes // 60
+    return f"{hours}h ago" if hours < 24 else f"{hours // 24}d ago"
+
+
+def ago(moment: datetime | None) -> str | None:
+    """How long ago something was published, or None when the source gave us no date.
+
+    None is rendered as nothing at all, never as a guess like 'unknown' or today's date — an item
+    with no timestamp must not be able to masquerade as fresh.
+    """
+    moment = aware(moment)
+    if moment is None:
+        return None
+    return humanize((datetime.now(UTC) - moment).total_seconds())
+
+
+def stamp(moment: datetime | None) -> str | None:
+    """The absolute date, for the tooltip behind the relative one: '20 Aug 2026, 06:21 UTC'."""
+    moment = aware(moment)
+    if moment is None:
+        return None
+    return moment.strftime("%d %b %Y, %H:%M UTC")

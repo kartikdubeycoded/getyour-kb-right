@@ -135,3 +135,32 @@ def test_opps_keeps_its_relevance_then_urgency_ranking():
     _add(eng, source="opps", title="generic", url="u2", score=30, published_at=now)
 
     assert [i.title for i in store.list_radar("opps", eng=eng)] == ["relevant", "generic"]
+
+
+# --- reading a timestamp back out: the clock the cards and the header share ---
+
+
+def test_ago_reads_like_a_feed():
+    now = datetime.now(UTC)
+    assert freshness.ago(now - timedelta(seconds=30)) == "just now"
+    assert freshness.ago(now - timedelta(minutes=42)) == "42m ago"
+    assert freshness.ago(now - timedelta(hours=4)) == "4h ago"
+    assert freshness.ago(now - timedelta(days=9)) == "9d ago"
+
+
+def test_ago_of_an_undated_item_is_none_not_a_guess():
+    """A card prints nothing when this is None. An item whose source gave no date must never be
+    able to render as fresh — that is the whole failure this column exists to prevent."""
+    assert freshness.ago(None) is None
+    assert freshness.stamp(None) is None
+
+
+def test_ago_handles_the_naive_datetimes_sqlite_returns():
+    naive = (datetime.now(UTC) - timedelta(hours=3)).replace(tzinfo=None)
+    assert freshness.ago(naive) == "3h ago"
+
+
+def test_stamp_is_the_absolute_date_behind_the_relative_one():
+    assert (
+        freshness.stamp(datetime(2026, 8, 20, 6, 21, tzinfo=UTC)) == "20 Aug 2026, 06:21 UTC"
+    )

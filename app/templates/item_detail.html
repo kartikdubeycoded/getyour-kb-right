@@ -6,6 +6,8 @@
     <p class="sub">
       <a class="back" href="/">&larr; back to desk</a> &middot;
       <span class="tag">{{ item.source }}</span> &middot;
+      {% set when = ago(item.published_at) %}
+      {% if when %}<span class="when" title="{{ stamp(item.published_at) }}">published {{ when }}</span> &middot;{% endif %}
       <a class="more" href="{{ item.url|safe_url }}" target="_blank" rel="noopener">open source &#8599;</a>
     </p>
 {% endblock %}

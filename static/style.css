@@ -155,6 +155,10 @@ div.card-img span {
   color: var(--accent-ink); font-weight: 600;
 }
 .status { font-size: 0.72rem; color: var(--faint); font-family: var(--sans); }
+/* When the source published an item. Same weight as .status — it's context, not a headline;
+   `cursor: help` hints that the absolute date is in the tooltip. */
+.when { font-size: 0.72rem; color: var(--faint); font-family: var(--sans); cursor: help;
+        white-space: nowrap; }
 
 /* the title reads like a headline */
 .summary {

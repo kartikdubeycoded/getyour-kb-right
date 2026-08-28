@@ -25,6 +25,7 @@ from app import (
     arxiv_radar,
     auth,
     cards,
+    freshness,
     github_radar,
     gnews_radar,
     heartbeat,
@@ -63,23 +64,10 @@ app = FastAPI(title="get-your-knowledge-right", lifespan=lifespan)
 templates = Jinja2Templates(directory=str(BASE_DIR / "templates"))
 
 
-def _aware(moment):
-    """SQLite hands datetimes back naive. Comparing one of those to an aware `now` raises, so
-    everything read from the DB is stamped UTC before it's used in arithmetic."""
-    if moment is not None and moment.tzinfo is None:
-        return moment.replace(tzinfo=UTC)
-    return moment
-
-
-def _ago(delta_seconds: float) -> str:
-    """Humanize a gap the way a header should read: 'just now', '4h ago', '2d ago'."""
-    minutes = int(delta_seconds // 60)
-    if minutes < 2:
-        return "just now"
-    if minutes < 60:
-        return f"{minutes}m ago"
-    hours = minutes // 60
-    return f"{hours}h ago" if hours < 24 else f"{hours // 24}d ago"
+# The clock lives in app/freshness.py — one implementation, so the header's "synced 4h ago" and a
+# card's "4h ago" can never drift apart. These names stay as the local vocabulary of this module.
+_aware = freshness.aware
+_ago = freshness.humanize
 
 
 def sync_status() -> dict:
@@ -147,6 +135,11 @@ def safe_url(value: str | None) -> str:
 templates.env.globals["card_image"] = cards.card_image  # used by the shared _card.html macro
 templates.env.globals["sync_status"] = sync_status
 templates.env.globals["is_new"] = is_new
+# The per-item clock: `ago` prints "4h ago", `stamp` the absolute date behind it on hover.
+# Both return None when a source gave us no date, and the templates then print nothing —
+# an undated item must never be able to look fresh.
+templates.env.globals["ago"] = freshness.ago
+templates.env.globals["stamp"] = freshness.stamp
 templates.env.filters["safe_url"] = safe_url
 app.mount("/static", StaticFiles(directory=str(BASE_DIR.parent / "static")), name="static")
 

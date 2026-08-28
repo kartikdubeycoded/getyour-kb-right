@@ -19,6 +19,12 @@
   <div class="row">
     <span class="tag">{{ item.source }}</span>
     {% if is_new(item) %}<span class="badge badge--new">NEW</span>{% endif %}
+    {# When the source published it. Omitted entirely when the source gave no date, so a card can
+       never imply a freshness it doesn't have. Absolute date sits in the tooltip. #}
+    {# `default` matters: this macro is also used by /saved, whose rows have no
+       published_at at all. A missing date renders as nothing, never as an error. #}
+    {% set when = ago(item.published_at|default(None, true)) %}
+    {% if when %}<span class="when" title="{{ stamp(item.published_at) }}">{{ when }}</span>{% endif %}
     <span class="status">{{ item.meta }}</span>
   </div>
   <p class="summary">{{ item.title }}</p>
